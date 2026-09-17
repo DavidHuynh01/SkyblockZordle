@@ -9,7 +9,7 @@ server/data/
 assets/
 
 .env.example
-supabase/README.md
+supabase/
 public/items/README.md
 
 .claude/

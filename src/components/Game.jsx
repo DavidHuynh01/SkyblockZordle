@@ -14,21 +14,14 @@ import {
   compareGuess,
   buildShareText,
 } from "../utils/game.js";
-import { recordResult, winPercent, applyResult } from "../utils/stats.js";
+import { recordResult, winPercent } from "../utils/stats.js";
 import { api, getClientId, getPlayerName } from "../utils/api.js";
-import { useAuth } from "../context/AuthContext.jsx";
-import {
-  fetchUserStats,
-  saveUserStats,
-  submitScore as submitScoreRemote,
-} from "../utils/supabaseData.js";
 
 const MAX_GUESSES = 8;
 const STORAGE_KEY = "skyblockzordle-daily-v2";
 
 export default function Game({ mode, onBack }) {
   const isDaily = mode === "daily";
-  const auth = useAuth();
 
   // Unlimited keeps a local target; daily hides the answer on the server.
   const [target, setTarget] = useState(() => (isDaily ? null : getRandomItem()));
@@ -95,49 +88,25 @@ export default function Game({ mode, onBack }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ date, guesses, status, answer }));
   }, [isDaily, date, guesses, status, answer]);
 
-  // On round end (daily): record stats + submit to the leaderboard.
-  // Logged in → sync to Supabase (cross-device stats + account leaderboard).
-  // Otherwise → local stats, plus the anonymous JSON leaderboard when Supabase
-  // isn't configured at all.
+  // On round end (daily): record local stats + submit to the leaderboard.
   useEffect(() => {
     if (!isDaily || status === "playing") return;
     const won = status === "won";
     const puzzleNumber = puzzleNum || getPuzzleNumber();
-    const timeMs = startRef.current ? Date.now() - startRef.current : 0;
-
-    (async () => {
-      if (auth.enabled && auth.user) {
-        try {
-          const remote = await fetchUserStats(auth.user.id);
-          const updated = applyResult(remote, { won, guesses: guesses.length, puzzleNumber });
-          await saveUserStats(auth.user.id, updated);
-          setStats(updated);
-          await submitScoreRemote(auth.user.id, {
-            date,
-            puzzleNumber,
-            guesses: guesses.length,
-            won,
-            timeMs,
-          });
-          return;
-        } catch {
-          /* network hiccup — fall through to local so stats still show */
-        }
-      }
-      setStats(recordResult({ won, guesses: guesses.length, puzzleNumber }));
-      if (!auth.enabled && !offline && date) {
-        api
-          .submitScore({
-            name: getPlayerName() || "Anonymous",
-            date,
-            guesses: guesses.length,
-            won,
-            timeMs,
-            clientId: getClientId(),
-          })
-          .catch(() => {});
-      }
-    })();
+    setStats(recordResult({ won, guesses: guesses.length, puzzleNumber }));
+    if (!offline && date) {
+      const timeMs = startRef.current ? Date.now() - startRef.current : 0;
+      api
+        .submitScore({
+          name: getPlayerName() || "Anonymous",
+          date,
+          guesses: guesses.length,
+          won,
+          timeMs,
+          clientId: getClientId(),
+        })
+        .catch(() => {});
+    }
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function revealAnswer() {
@@ -338,7 +307,7 @@ export default function Game({ mode, onBack }) {
       </div>
 
       {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
-      {showLb && <Leaderboard date={date} onClose={() => setShowLb(false)} />}
+      {showLb && <Leaderboard onClose={() => setShowLb(false)} />}
     </div>
   );
 }

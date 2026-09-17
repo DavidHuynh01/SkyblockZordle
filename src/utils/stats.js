@@ -1,6 +1,5 @@
-// Player stats. Same shape is used locally (localStorage, anonymous) and
-// remotely (Supabase user_stats, when logged in) — the update logic is a pure
-// function so both paths share it.
+// Player stats, saved in localStorage. The update logic is a pure function
+// (applyResult) so it's easy to reason about and reuse.
 
 const STATS_KEY = "skyblockzordle-stats-v1";
 

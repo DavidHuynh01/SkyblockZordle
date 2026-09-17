@@ -28,11 +28,10 @@ with friends.
 - **Stats & streaks** — games played, win rate, current and max streak
 - **Share** — copy a spoiler-free emoji grid of your result
 - **Global leaderboard** — the day's fastest solves
-- **Discord login** — optional, syncs your stats across devices
 
 ## Built with
 
-React · Vite · Tailwind CSS · Express · Supabase (Postgres + auth)
+React · Vite · Tailwind CSS · Express
 
 The daily answer is chosen and checked on the server, so it isn't sitting in the
 page for anyone to read.

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import CreditsModal from "./CreditsModal.jsx";
 import Leaderboard from "./Leaderboard.jsx";
-import { useAuth } from "../context/AuthContext.jsx";
 
 const GITHUB_URL = "https://github.com/DavidHuynh01";
 const DISCORD_URL = "https://discord.gg/skyblock";
@@ -33,50 +32,11 @@ function CreditsIcon() {
   );
 }
 
-function AccountBar() {
-  const { enabled, loading, user, profile, signIn, signOut } = useAuth();
-  if (!enabled || loading) return null; // accounts off / still checking
-  if (!user) {
-    return (
-      <button
-        onClick={signIn}
-        className="mc-btn text-[10px] flex items-center gap-2"
-        style={{ background: "#5865F2" }}
-      >
-        <span>Login with Discord</span>
-      </button>
-    );
-  }
-  return (
-    <div className="flex items-center gap-2 text-white text-[9px] text-shadow-mc">
-      {profile?.avatar && (
-        <img
-          src={profile.avatar}
-          alt=""
-          width={24}
-          height={24}
-          className="mc-slot"
-          style={{ width: 24, height: 24 }}
-        />
-      )}
-      <span>{profile?.name}</span>
-      <button className="mc-btn text-[8px] px-2 py-1" onClick={signOut}>
-        Logout
-      </button>
-    </div>
-  );
-}
-
 export default function Menu({ onNavigate }) {
   const [showCredits, setShowCredits] = useState(false);
   const [showLb, setShowLb] = useState(false);
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center px-4">
-      {/* Account (top-right) — only shows when Supabase is configured */}
-      <div className="absolute top-4 right-4">
-        <AccountBar />
-      </div>
-
       {/* Logo */}
       <div className="mc-panel px-6 sm:px-10 py-6 mb-12 -rotate-1 max-w-[92vw]">
         <h1 className="mc-title text-2xl sm:text-5xl text-center break-words">

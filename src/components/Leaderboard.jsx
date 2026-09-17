@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { api, getPlayerName, setPlayerName } from "../utils/api.js";
-import { useAuth } from "../context/AuthContext.jsx";
-import { fetchLeaderboard, fetchGlobalStats } from "../utils/supabaseData.js";
 
 function fmtTime(ms) {
   if (!ms) return "";
@@ -12,23 +10,17 @@ function fmtTime(ms) {
 
 const DIST_KEYS = [1, 2, 3, 4, 5, 6, 7, 8];
 
-export default function Leaderboard({ date, onClose }) {
-  const auth = useAuth();
-  const today = date || new Date().toISOString().slice(0, 10);
-
+export default function Leaderboard({ onClose }) {
   const [entries, setEntries] = useState(null); // null = loading
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(false);
 
-  // Anonymous name (only used when Supabase is NOT configured).
   const [name, setName] = useState(getPlayerName());
   const [savedMsg, setSavedMsg] = useState(false);
 
   useEffect(() => {
     let active = true;
-    const load = auth.enabled
-      ? Promise.all([fetchLeaderboard(today), fetchGlobalStats()])
-      : Promise.all([api.leaderboard().then((r) => r.entries || []), api.globalStats()]);
+    const load = Promise.all([api.leaderboard().then((r) => r.entries || []), api.globalStats()]);
     load
       .then(([e, s]) => {
         if (!active) return;
@@ -39,7 +31,7 @@ export default function Leaderboard({ date, onClose }) {
     return () => {
       active = false;
     };
-  }, [auth.enabled, today]);
+  }, []);
 
   function saveName() {
     setPlayerName(name.trim().slice(0, 16));
@@ -72,44 +64,24 @@ export default function Leaderboard({ date, onClose }) {
 
         {!error && (
           <>
-            {/* Identity section */}
-            {auth.enabled ? (
-              <div className="mb-4 text-center">
-                {auth.user ? (
-                  <p className="text-[9px] text-paneldark">
-                    Signed in as{" "}
-                    <span className="text-[#3f7d2e]">{auth.profile?.name}</span> — your
-                    solves post here automatically.
-                  </p>
-                ) : (
-                  <button
-                    onClick={auth.signIn}
-                    className="mc-btn text-[10px]"
-                    style={{ background: "#5865F2" }}
-                  >
-                    Login with Discord to compete
-                  </button>
-                )}
+            {/* Display name */}
+            <div className="mb-4">
+              <label className="text-[8px] text-paneldark uppercase opacity-70">
+                Your display name
+              </label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  value={name}
+                  maxLength={16}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Anonymous"
+                  className="flex-1 bg-[#3a3a3a] text-white px-3 py-2 text-[10px] outline-none mc-slot"
+                />
+                <button className="mc-btn text-[9px]" onClick={saveName}>
+                  {savedMsg ? "Saved!" : "Save"}
+                </button>
               </div>
-            ) : (
-              <div className="mb-4">
-                <label className="text-[8px] text-paneldark uppercase opacity-70">
-                  Your display name
-                </label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    value={name}
-                    maxLength={16}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Anonymous"
-                    className="flex-1 bg-[#3a3a3a] text-white px-3 py-2 text-[10px] outline-none mc-slot"
-                  />
-                  <button className="mc-btn text-[9px]" onClick={saveName}>
-                    {savedMsg ? "Saved!" : "Save"}
-                  </button>
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Today's top solvers */}
             <h3 className="text-[10px] text-paneldark mb-2">Today's fastest solves</h3>
@@ -129,9 +101,6 @@ export default function Leaderboard({ date, onClose }) {
                     >
                       <span className="flex items-center gap-2">
                         <span className="opacity-60 w-5">#{e.rank}</span>
-                        {e.avatar && (
-                          <img src={e.avatar} alt="" width={16} height={16} style={{ width: 16, height: 16 }} />
-                        )}
                         <span>{e.name}</span>
                       </span>
                       <span className="opacity-80">
