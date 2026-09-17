@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --grass: #7cb342;
+  --sky-top: #1a4b8c;
+  --sky-bottom: #6ec6e8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Press Start 2P", monospace;
+  color: #2b2b2b;
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 55%, var(--grass) 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: none;
+  image-rendering: pixelated;
+}
+
+/* Crisp pixel scaling for any item sprites dropped into /public/items */
+img.pixel {
+  image-rendering: pixelated;
+}
+
+/* Blurred background image layer (sits above the body gradient, below UI).
+   Oversized + scaled so the blur doesn't leave soft edges at the viewport. */
+.app-bg-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+.app-bg-img {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  object-fit: cover;
+  filter: blur(10px) brightness(0.85) saturate(1.05);
+  transform: scale(1.08);
+}
+.app-bg-overlay {
+  position: absolute;
+  inset: 0;
+  /* Darken slightly so white pixel text stays readable over any image. */
+  background: rgba(8, 16, 34, 0.45);
+}
+
+/* Minecraft-style raised panel (light) */
+.mc-panel {
+  background: #c6c6c6;
+  border: 4px solid #fff;
+  border-right-color: #555;
+  border-bottom-color: #555;
+  box-shadow: inset -4px -4px 0 0 #8b8b8b, inset 4px 4px 0 0 #ffffff;
+}
+
+/* Dark inventory-style panel */
+.mc-panel-dark {
+  background: #2b2b2b;
+  border: 4px solid #1a1a1a;
+  box-shadow: inset -3px -3px 0 0 #1a1a1a, inset 3px 3px 0 0 #555;
+}
+
+/* Minecraft button */
+.mc-btn {
+  font-family: "Press Start 2P", monospace;
+  background: #9a9a9a;
+  color: #fff;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  border: 3px solid #000;
+  box-shadow: inset -3px -3px 0 0 #565656, inset 3px 3px 0 0 #c6c6c6;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+.mc-btn:hover {
+  filter: brightness(1.12);
+  background: #a7c97f;
+}
+.mc-btn:active {
+  box-shadow: inset 3px 3px 0 0 #565656, inset -3px -3px 0 0 #c6c6c6;
+}
+
+/* Inventory slot */
+.mc-slot {
+  background: #8b8b8b;
+  border: 2px solid #373737;
+  box-shadow: inset -2px -2px 0 0 #ffffff, inset 2px 2px 0 0 #373737;
+}
+
+/* Result cell colors */
+.cell-correct {
+  background: #2e7d32;
+  color: #fff;
+}
+.cell-wrong {
+  background: #b23b3b;
+  color: #fff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: #373737;
+}
+::-webkit-scrollbar-thumb {
+  background: #8b8b8b;
+  border: 2px solid #373737;
+}
+
+.text-shadow-mc {
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Minecraft-style gradient pixel logo (cyan → blue → purple → magenta) with a
+   dark outline and offset drop shadow, à la a server network logo. */
+.mc-title {
+  font-family: "Press Start 2P", monospace;
+  background: linear-gradient(
+    95deg,
+    #6fe9ff 0%,
+    #5aa8ff 28%,
+    #9a7bff 55%,
+    #d96bff 78%,
+    #ff7bd5 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 3px #2a1248;
+  /* Paint the stroke behind the fill so the gradient stays crisp. */
+  paint-order: stroke fill;
+  filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, 0.55));
+  line-height: 1.05;
+}
+@media (max-width: 640px) {
+  .mc-title {
+    -webkit-text-stroke-width: 2px;
+  }
+}
+
+/* Smaller wordmark variant for the in-game top bar. */
+.mc-title-sm {
+  -webkit-text-stroke-width: 1.5px;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
+}
