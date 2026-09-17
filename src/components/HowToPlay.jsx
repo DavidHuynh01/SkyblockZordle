@@ -38,7 +38,7 @@ export default function HowToPlay({ onClose }) {
           <p className="pt-1">Attributes compared:</p>
           <ul className="list-disc list-inside space-y-1 opacity-90">
             <li>Rarity (Common → Special)</li>
-            <li>Category (Sword, Bow, Chestplate, Accessory…)</li>
+            <li>Category (Sword, Bow, Wand, Pickaxe…)</li>
             <li>NPC Sell price</li>
             <li>Source (Crafting, Dungeon, Slayer…)</li>
             <li>Location (The End, Dungeons, Crystal Hollows…)</li>
