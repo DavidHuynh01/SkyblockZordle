@@ -3,17 +3,6 @@
 A daily guessing game for **Hypixel Skyblock** items — like Wordle, but instead
 of five-letter words you're guessing swords, wands, bows, and tools.
 
-## Screenshots
-
-<p align="center">
-  <img width="400" height="225" alt="Main menu" src="docs/screenshots/menu.png" />
-  <img width="400" height="225" alt="Daily game in progress" src="docs/screenshots/daily.png" />
-  <img width="400" height="225" alt="Solved daily puzzle" src="docs/screenshots/win.png" />
-  <img width="400" height="225" alt="How to play" src="docs/screenshots/how-to-play.png" />
-  <img width="400" height="225" alt="Leaderboard" src="docs/screenshots/leaderboard.png" />
-  <img width="400" height="225" alt="Collections" src="docs/screenshots/collections.png" />
-</p>
-
 ## How it works
 
 Every day there's one secret Skyblock item, and you get 8 guesses to find it.
@@ -39,6 +28,17 @@ with friends.
 - **Stats & streaks** — games played, win rate, current and max streak
 - **Share** — copy a spoiler-free emoji grid of your result
 - **Global leaderboard** — the day's fastest solves
+
+## Screenshots
+
+<p align="center">
+  <img width="400" height="225" alt="Main menu" src="docs/screenshots/menu.png" />
+  <img width="400" height="225" alt="Daily game in progress" src="docs/screenshots/daily.png" />
+  <img width="400" height="225" alt="Solved daily puzzle" src="docs/screenshots/win.png" />
+  <img width="400" height="225" alt="How to play" src="docs/screenshots/how-to-play.png" />
+  <img width="400" height="225" alt="Leaderboard" src="docs/screenshots/leaderboard.png" />
+  <img width="400" height="225" alt="Collections" src="docs/screenshots/collections.png" />
+</p>
 
 ## Built with
 
