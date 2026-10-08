@@ -18,3 +18,6 @@ public/items/README.md
 .DS_Store
 Thumbs.db
 *.log
+
+# Local deploy notes (not published)
+DEPLOY.md

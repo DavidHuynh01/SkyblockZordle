@@ -6,9 +6,12 @@
   "description": "Backend API for SkyblockZordle: daily answer, guess checking, leaderboard, stats",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "node index.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1147.0",
+    "@aws-sdk/lib-dynamodb": "^3.1147.0",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   }

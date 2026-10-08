@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SkyblockZordle API - Lambda Function URL + DynamoDB (serverless, pay-per-request)
+
+Parameters:
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: Origin allowed to call the API (set to your site URL once deployed)
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Timeout: 10
+    MemorySize: 256
+    Architectures: [arm64]   # cheaper per ms than x86
+
+Resources:
+  ScoresTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST   # no idle cost; free tier covers hobby traffic
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: esm
+        Target: es2022
+        Minify: true
+        OutExtension: [".js=.mjs"]
+        EntryPoints: [lambda/handler.js]
+    Properties:
+      CodeUri: ../
+      Handler: handler.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ScoresTable
+          ALLOWED_ORIGIN: !Ref AllowedOrigin
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ScoresTable
+      FunctionUrlConfig:
+        AuthType: NONE          # public game API, no credentials needed
+        Cors:
+          AllowOrigins: [!Ref AllowedOrigin]
+          AllowMethods: [GET, POST, OPTIONS]
+          AllowHeaders: [content-type]
+
+Outputs:
+  ApiUrl:
+    Description: Set this as VITE_API_URL (append /api) when building the frontend
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
+  TableName:
+    Value: !Ref ScoresTable
