@@ -85,7 +85,9 @@ test("lambda handler speaks Function URL events", async () => {
   });
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers["content-type"], "application/json");
-  assert.ok(res.headers["access-control-allow-origin"]);
+  // CORS is owned by the Function URL config, not the handler (duplicate
+  // Access-Control-Allow-Origin headers break the browser).
+  assert.equal(res.headers["access-control-allow-origin"], undefined);
   assert.equal(JSON.parse(res.body).date, utcDateKey());
 });
 

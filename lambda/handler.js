@@ -6,11 +6,10 @@ import { createDynamoStore } from "../server/store/dynamo.js";
 const store = createDynamoStore({ tableName: process.env.TABLE_NAME });
 const api = createApi(store);
 
-const CORS = {
-  "access-control-allow-origin": process.env.ALLOWED_ORIGIN || "*",
-  "access-control-allow-headers": "content-type",
-  "access-control-allow-methods": "GET,POST,OPTIONS",
-};
+// CORS headers are added by the Function URL's own CORS config (see
+// infra/template.yaml). Setting them here too would send duplicate
+// Access-Control-Allow-Origin values and browsers reject that.
+const JSON_HEADERS = { "content-type": "application/json" };
 
 export async function handler(event) {
   const method = event?.requestContext?.http?.method || "GET";
@@ -24,7 +23,7 @@ export async function handler(event) {
     try {
       body = JSON.parse(raw);
     } catch {
-      return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: "invalid json" }) };
+      return { statusCode: 400, headers: JSON_HEADERS, body: JSON.stringify({ error: "invalid json" }) };
     }
   }
 
@@ -37,11 +36,11 @@ export async function handler(event) {
     });
     return {
       statusCode: res.status,
-      headers: { "content-type": "application/json", ...CORS },
+      headers: JSON_HEADERS,
       body: res.body === null ? "" : JSON.stringify(res.body),
     };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: "server error" }) };
+    return { statusCode: 500, headers: JSON_HEADERS, body: JSON.stringify({ error: "server error" }) };
   }
 }

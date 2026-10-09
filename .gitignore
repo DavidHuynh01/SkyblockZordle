@@ -10,7 +10,6 @@ assets/
 
 .env.example
 supabase/
-public/items/README.md
 
 .claude/
 .vscode/
@@ -21,3 +20,7 @@ Thumbs.db
 
 # Local deploy notes (not published)
 DEPLOY.md
+
+# SAM build output / local deploy config
+.aws-sam/
+samconfig.toml
