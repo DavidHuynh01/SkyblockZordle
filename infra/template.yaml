@@ -78,7 +78,7 @@ Resources:
         Cors:
           AllowOrigins: [!Ref AllowedOrigin]
           AllowMethods: [GET, POST]   # preflight OPTIONS is handled by the Function URL itself
-          AllowHeaders: [content-type]
+          AllowHeaders: [content-type, authorization]   # authorization is required for the Discord session token
 
   # ---- Frontend hosting: private S3 bucket behind CloudFront ----
   SiteBucket:
