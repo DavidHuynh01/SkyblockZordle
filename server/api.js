@@ -3,6 +3,7 @@
 import { utcDateKey, puzzleNumber, answerFor, compareGuess, itemById } from "./logic.js";
 import { createSessionToken, verifySessionToken, createState, verifyState, bearerFrom } from "./auth.js";
 import { authorizeUrl, exchangeCode, fetchUser } from "./discord.js";
+import { createRateLimiter } from "./ratelimit.js";
 
 const MAX_GUESSES = 8;
 const reply = (status, body, headers) => ({ status, body, headers });
@@ -122,12 +123,23 @@ export function createApi(store, config = {}, deps = {}) {
   };
 }
 
-export async function handleRequest(api, { method, path, query = {}, body = {}, headers = {} }) {
+const limiter = createRateLimiter();
+
+// Writes (guessing) cost a DynamoDB write; reads are cheap. Auth routes count
+// as writes so nobody can spin the OAuth flow in a loop.
+const WRITE_ROUTES = new Set(["/api/guess", "/api/auth/login", "/api/auth/callback"]);
+
+export async function handleRequest(api, { method, path, query = {}, body = {}, headers = {}, ip } = {}) {
   const i = path.indexOf("/api/");
   const route = i >= 0 ? path.slice(i) : path;
   const m = (method || "GET").toUpperCase();
 
   if (m === "OPTIONS") return reply(204, null);
+
+  const { allowed, retryAfter } = limiter.check(ip, WRITE_ROUTES.has(route) ? "write" : "read");
+  if (!allowed) {
+    return reply(429, { error: "too many requests" }, { "retry-after": String(retryAfter) });
+  }
   if (m === "GET" && route === "/api/health") return api.health();
   if (m === "GET" && route === "/api/daily") return api.daily();
   if (m === "GET" && route === "/api/me") return api.me(query, headers);

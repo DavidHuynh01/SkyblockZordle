@@ -36,6 +36,7 @@ export async function handler(event) {
       query: event?.queryStringParameters || {},
       body,
       headers: event?.headers || {},
+      ip: event?.requestContext?.http?.sourceIp,
     });
     // Redirects (OAuth) carry a location header and no body.
     if (res.headers?.location) {
@@ -43,7 +44,8 @@ export async function handler(event) {
     }
     return {
       statusCode: res.status,
-      headers: JSON_HEADERS,
+      // ...res.headers carries things like retry-after on a 429
+      headers: { ...JSON_HEADERS, ...(res.headers || {}) },
       body: res.body === null ? "" : JSON.stringify(res.body),
     };
   } catch (err) {

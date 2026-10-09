@@ -30,6 +30,7 @@ app.all("/api/*", async (req, res) => {
       query: req.query,
       body: req.body,
       headers: req.headers,
+      ip: req.ip,
     });
     if (headers) res.set(headers);
     body === null ? res.status(status).end() : res.status(status).json(body);
