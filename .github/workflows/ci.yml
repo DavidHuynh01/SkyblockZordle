@@ -69,6 +69,11 @@ jobs:
             package-lock.json
             server/package-lock.json
 
+      # Must come before `sam build`: the Lambda is bundled with esbuild, which
+      # SAM expects to find in the project's node_modules.
+      - name: Install
+        run: npm ci
+
       - name: Deploy API (Lambda + DynamoDB + CloudFront)
         working-directory: infra
         run: |
@@ -86,9 +91,7 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_URL }}
           VITE_SITE_URL: ${{ vars.SITE_URL }}
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
 
       # Hashed asset filenames can be cached forever; index.html must not be,
       # or CloudFront will keep serving a page that points at deleted bundles.
