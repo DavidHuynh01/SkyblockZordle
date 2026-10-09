@@ -1,5 +1,7 @@
 # SkyblockZordle
 
+### ▶ Play it: **[skyblockzordle](https://d3htnxjhk2w7e2.cloudfront.net)**
+
 A daily guessing game for **Hypixel Skyblock** items — like Wordle, but instead
 of five-letter words you're guessing swords, wands, bows, and tools.
 
@@ -27,7 +29,7 @@ with friends.
 - **Collections** — browse all the items and their stats
 - **Stats & streaks** — games played, win rate, current and max streak
 - **Share** — copy a spoiler-free emoji grid of your result
-- **Global leaderboard** — the day's fastest solves
+- **Global leaderboard** — the day's fastest solves, sign in with Discord to compete
 
 ## Screenshots
 
@@ -42,10 +44,23 @@ with friends.
 
 ## Built with
 
-React · Vite · Tailwind CSS · Express
+- **Frontend** — React · Vite · Tailwind CSS
+- **Backend** — AWS Lambda · DynamoDB · CloudFront + S3 · AWS SAM (infrastructure as code)
 
-The daily answer is chosen and checked on the server, so it isn't sitting in the
-page for anyone to read.
+It runs entirely serverless: a Lambda Function URL for the API, DynamoDB for
+scores and sessions, and the site itself served from a private S3 bucket through
+CloudFront. The whole stack is defined in [`infra/template.yaml`](infra/template.yaml),
+so it deploys from a single command.
+
+### A couple of design notes
+
+**The answer never reaches your browser.** Guesses are checked on the server, so
+the daily item isn't sitting in the page for anyone to read.
+
+**Scores can't be faked.** The server counts your guesses itself and writes the
+leaderboard entry when it sees the winning guess — the browser never reports a
+score. Ranking requires signing in with Discord (OAuth2 handled in Lambda,
+sessions as signed tokens), so a leaderboard entry is tied to a real account.
 
 ---
 
