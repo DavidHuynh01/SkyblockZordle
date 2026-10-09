@@ -2,6 +2,8 @@ import { useState } from "react";
 import CreditsModal from "./CreditsModal.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import SoundToggle from "./SoundToggle.jsx";
+import { sfx } from "../utils/sfx.js";
 
 const GITHUB_URL = "https://github.com/DavidHuynh01";
 const DISCORD_URL = "https://discord.gg/skyblock";
@@ -71,28 +73,29 @@ export default function Menu({ onNavigate }) {
       <div className="flex flex-col gap-4 w-72">
         <button
           className="mc-btn text-base"
-          onClick={() => onNavigate("daily")}
+          onClick={() => { sfx.click(); onNavigate("daily"); }}
         >
           DAILY GAME
         </button>
         <button
           className="mc-btn text-base"
-          onClick={() => onNavigate("unlimited")}
+          onClick={() => { sfx.click(); onNavigate("unlimited"); }}
         >
           UNLIMITED
         </button>
         <button
           className="mc-btn text-base"
-          onClick={() => onNavigate("collections")}
+          onClick={() => { sfx.click(); onNavigate("collections"); }}
         >
           COLLECTIONS
         </button>
-        <button className="mc-btn text-base" onClick={() => setShowLb(true)}>
+        <button className="mc-btn text-base" onClick={() => { sfx.click(); setShowLb(true); }}>
           LEADERBOARD
         </button>
 
         {/* Icon row: GitHub · Discord · Credits */}
-        <div className="flex justify-center gap-3 mt-1">
+        <div className="flex justify-center gap-3 mt-1 items-center">
+          <SoundToggle className="w-14 h-14" />
           <a
             href={GITHUB_URL}
             target="_blank"

@@ -150,6 +150,26 @@ img.pixel {
   }
 }
 
+/* Gentle idle animation for the big menu logo: a slow bob plus a shimmer that
+   sweeps the gradient. Scoped away from the small in-game wordmark, and turned
+   off for anyone who prefers reduced motion. */
+@keyframes logo-bob {
+  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+  50%      { transform: translateY(-7px) rotate(0.6deg); }
+}
+@keyframes logo-shimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.mc-title:not(.mc-title-sm) {
+  background-size: 200% auto;
+  animation: logo-bob 4.5s ease-in-out infinite, logo-shimmer 7s linear infinite;
+  will-change: transform, background-position;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mc-title:not(.mc-title-sm) { animation: none; }
+}
+
 /* Smaller wordmark variant for the in-game top bar. */
 .mc-title-sm {
   -webkit-text-stroke-width: 1.5px;

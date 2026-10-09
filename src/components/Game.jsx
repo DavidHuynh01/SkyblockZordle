@@ -4,6 +4,7 @@ import ItemPicker from "./ItemPicker.jsx";
 import ItemGrid from "./ItemGrid.jsx";
 import ItemIcon from "./ItemIcon.jsx";
 import HowToPlay from "./HowToPlay.jsx";
+import SoundToggle from "./SoundToggle.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import {
   getDailyItem,
@@ -16,6 +17,7 @@ import {
 } from "../utils/game.js";
 import { recordResult, winPercent } from "../utils/stats.js";
 import { api } from "../utils/api.js";
+import { sfx } from "../utils/sfx.js";
 
 const MAX_GUESSES = 8;
 const STORAGE_KEY = "skyblockzordle-daily-v2";
@@ -37,6 +39,7 @@ export default function Game({ mode, onBack }) {
   const [copied, setCopied] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showLb, setShowLb] = useState(false);
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false);
   const startRef = useRef(null);
 
   // ---- Daily setup: fetch puzzle meta from the server (falls back to a local
@@ -93,6 +96,7 @@ export default function Game({ mode, onBack }) {
   // here is trusted for ranking.
   useEffect(() => {
     if (!isDaily || status === "playing") return;
+    status === "won" ? sfx.win() : sfx.lose();
     setStats(
       recordResult({
         won: status === "won",
@@ -139,6 +143,7 @@ export default function Game({ mode, onBack }) {
 
     const next = [...guesses, { item, result }];
     setGuesses(next);
+    correct ? sfx.correct() : sfx.wrong();
     if (correct) {
       setStatus("won");
       setAnswer(item);
@@ -150,7 +155,14 @@ export default function Game({ mode, onBack }) {
 
   function giveUp() {
     if (status !== "playing") return;
+    setConfirmGiveUp(true);
+  }
+
+  function reallyGiveUp() {
+    setConfirmGiveUp(false);
+    if (status !== "playing") return;
     setStatus("lost");
+    sfx.lose();
     revealAnswer();
   }
 
@@ -192,6 +204,7 @@ export default function Game({ mode, onBack }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <SoundToggle />
           {isDaily && (
             <button
               className="mc-slot w-9 h-9 flex items-center justify-center text-paneldark hover:text-black"
@@ -298,6 +311,33 @@ export default function Game({ mode, onBack }) {
       <div className="w-full max-w-4xl">
         <GuessGrid guesses={guesses} />
       </div>
+
+      {confirmGiveUp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.6)" }}
+          onClick={() => setConfirmGiveUp(false)}
+        >
+          <div className="mc-panel w-full max-w-xs p-5 animate-pop text-center" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[11px] text-paneldark mb-2">Give up?</p>
+            <p className="text-[9px] text-paneldark opacity-70 mb-5">
+              The answer will be revealed and the round ends.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button className="mc-btn text-[10px]" onClick={() => setConfirmGiveUp(false)}>
+                Keep playing
+              </button>
+              <button
+                className="mc-btn text-[10px]"
+                style={{ background: "#b23b3b" }}
+                onClick={reallyGiveUp}
+              >
+                Give up
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showHelp && <HowToPlay onClose={() => setShowHelp(false)} />}
       {showLb && <Leaderboard onClose={() => setShowLb(false)} />}
