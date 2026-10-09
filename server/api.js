@@ -82,6 +82,7 @@ export function createApi(store, config = {}, deps = {}) {
       const answer = answerFor(day);
       const correct = guess.id === answer.id;
       const user = userFrom(headers);
+      let streak = null;
       // Anonymous players are tracked for the daily counts only (an opaque
       // browser id), never for ranking.
       const anonId = typeof body.anonId === "string" ? body.anonId.slice(0, 64).replace(/[^\w-]/g, "") : "";
@@ -107,6 +108,12 @@ export function createApi(store, config = {}, deps = {}) {
             timeMs,
             createdAt: Date.now(),
           });
+          streak = await store.recordStreak({
+            userId: user.id,
+            name: user.username,
+            avatar: user.avatar || null,
+            puzzleNumber: puzzleNumber(day),
+          });
         }
       }
 
@@ -115,6 +122,7 @@ export function createApi(store, config = {}, deps = {}) {
         correct,
         answer: correct ? answer : undefined,
         ...(recorded ? { serverGuesses: recorded.guesses } : {}),
+        ...(streak ? { streak: streak.streak, maxStreak: streak.maxStreak } : {}),
       });
     },
 
@@ -122,7 +130,11 @@ export function createApi(store, config = {}, deps = {}) {
 
     leaderboard: async ({ date } = {}) => {
       const day = date || utcDateKey();
-      return reply(200, { date: day, entries: await store.leaderboard(day) });
+      const [entries, streaks] = await Promise.all([
+        store.leaderboard(day),
+        store.topStreaks(),
+      ]);
+      return reply(200, { date: day, entries, streaks });
     },
 
     stats: async () => reply(200, await store.globalStats(utcDateKey())),

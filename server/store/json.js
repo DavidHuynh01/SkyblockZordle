@@ -2,6 +2,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { nextStreak, mergeTop, publicTop, TOP_LIMIT } from "../streaks.js";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
 const FILE = join(DIR, "leaderboard.json");
@@ -19,6 +20,7 @@ export function createJsonStore() {
   db.users = db.users || {};
   db.games = db.games || {};
   db.days = db.days || {};
+  db.streaks = db.streaks || [];
   const save = () => {
     if (!existsSync(DIR)) mkdirSync(DIR, { recursive: true });
     writeFileSync(FILE, JSON.stringify(db));
@@ -57,6 +59,27 @@ export function createJsonStore() {
       );
       db.scores.push(entry);
       save();
+    },
+
+    async recordStreak({ userId, name, avatar = null, puzzleNumber, now = Date.now() }) {
+      const profile = db.users[userId] || {};
+      const s = nextStreak(profile, puzzleNumber);
+      if (!s.changed) return { streak: s.streak, maxStreak: s.maxStreak };
+      db.users[userId] = {
+        ...profile,
+        streak: s.streak,
+        maxStreak: s.maxStreak,
+        lastSolvedPuzzle: s.lastSolvedPuzzle,
+      };
+      if (s.improved) {
+        db.streaks = mergeTop(db.streaks, { userId, name, avatar, maxStreak: s.maxStreak, at: now });
+      }
+      save();
+      return { streak: s.streak, maxStreak: s.maxStreak };
+    },
+
+    async topStreaks(limit = TOP_LIMIT) {
+      return publicTop(db.streaks, limit);
     },
 
     async leaderboard(dateKey, limit = 50) {

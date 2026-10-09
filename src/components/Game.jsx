@@ -41,6 +41,8 @@ export default function Game({ mode, onBack }) {
   const [showLb, setShowLb] = useState(false);
   const [confirmGiveUp, setConfirmGiveUp] = useState(false);
   const [todayStats, setTodayStats] = useState(null);
+  // Streak as counted by the server, for signed-in players only.
+  const [serverStreak, setServerStreak] = useState(null);
   const startRef = useRef(null);
 
   // ---- Daily setup: fetch puzzle meta from the server (falls back to a local
@@ -56,6 +58,7 @@ export default function Game({ mode, onBack }) {
           setGuesses(saved.guesses);
           setStatus(saved.status || "playing");
           if (saved.answer) setAnswer(saved.answer);
+          if (saved.serverStreak) setServerStreak(saved.serverStreak);
         }
       } catch {
         /* ignore corrupt storage */
@@ -89,8 +92,11 @@ export default function Game({ mode, onBack }) {
   // Persist daily progress.
   useEffect(() => {
     if (!isDaily || !date) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ date, guesses, status, answer }));
-  }, [isDaily, date, guesses, status, answer]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ date, guesses, status, answer, serverStreak })
+    );
+  }, [isDaily, date, guesses, status, answer, serverStreak]);
 
   // On round end (daily): local stats only. A signed-in player's leaderboard
   // entry is written by the server when it sees the winning guess, so nothing
@@ -129,6 +135,7 @@ export default function Game({ mode, onBack }) {
         result = r.result;
         correct = r.correct;
         if (r.answer) setAnswer(r.answer);
+        if (r.streak) setServerStreak({ streak: r.streak, maxStreak: r.maxStreak });
       } catch {
         // API died mid-game — switch to local checking.
         const t = getDailyItem();
@@ -278,6 +285,15 @@ export default function Game({ mode, onBack }) {
                     </div>
                   ))}
                 </div>
+              )}
+              {serverStreak && status === "won" && (
+                <p className="text-[10px] text-[#3f7d2e] text-center">
+                  🔥 {serverStreak.streak}
+                  {serverStreak.streak === 1 ? " day streak" : " days in a row"}
+                  {serverStreak.streak > 1 && serverStreak.streak === serverStreak.maxStreak
+                    ? " — personal best!"
+                    : ""}
+                </p>
               )}
               <div className="flex gap-2">
                 <button className="mc-btn text-[10px]" onClick={handleShare}>

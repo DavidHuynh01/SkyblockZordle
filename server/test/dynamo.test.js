@@ -112,3 +112,49 @@ test("daily solved counts completions, and days are independent", async () => {
   assert.equal(a.todayPlayers, 1); assert.equal(a.todaySolved, 1);
   assert.equal(b.todayPlayers, 1); assert.equal(b.todaySolved, 0, "yesterday's solve doesn't leak");
 });
+
+test("consecutive puzzles build a streak", async () => {
+  const { store } = setup();
+  await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 1 });
+  const s = await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 2 });
+  assert.equal(s.streak, 2);
+  assert.equal(s.maxStreak, 2);
+  assert.equal((await store.topStreaks())[0].maxStreak, 2);
+});
+
+test("a missed puzzle resets the streak but the board keeps the record", async () => {
+  const { store } = setup();
+  await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 1 });
+  await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 2 });
+  const s = await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 5 });
+  assert.equal(s.streak, 1);
+  assert.equal(s.maxStreak, 2);
+  const top = await store.topStreaks();
+  assert.equal(top.length, 1, "one row per player");
+  assert.equal(top[0].maxStreak, 2, "the personal best survives a reset");
+});
+
+test("recording the same puzzle twice does not inflate the streak", async () => {
+  const { store } = setup();
+  await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 7 });
+  const s = await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 7 });
+  assert.equal(s.streak, 1);
+  assert.equal(s.maxStreak, 1);
+});
+
+test("the streak board ranks players by their longest run", async () => {
+  const { store } = setup();
+  for (let p = 1; p <= 3; p++) await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: p });
+  await store.recordStreak({ userId: "u2", name: "Alex", puzzleNumber: 1 });
+  const top = await store.topStreaks();
+  assert.deepEqual(top.map((e) => [e.rank, e.name, e.maxStreak]), [[1, "Steve", 3], [2, "Alex", 1]]);
+});
+
+test("a streak survives a profile update on re-login", async () => {
+  const { store } = setup();
+  await store.upsertUser({ id: "u1", username: "Steve", avatar: null });
+  await store.recordStreak({ userId: "u1", name: "Steve", puzzleNumber: 1 });
+  await store.upsertUser({ id: "u1", username: "Steve2", avatar: "a.png" });
+  const s = await store.recordStreak({ userId: "u1", name: "Steve2", puzzleNumber: 2 });
+  assert.equal(s.streak, 2, "logging in again must not wipe the streak");
+});

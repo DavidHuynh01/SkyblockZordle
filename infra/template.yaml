@@ -156,3 +156,6 @@ Outputs:
   SiteBucketName:
     Description: Upload the built frontend here (aws s3 sync dist/ s3://<this>)
     Value: !Ref SiteBucket
+  DistributionId:
+    Description: CloudFront distribution to invalidate after a frontend deploy
+    Value: !Ref SiteDistribution

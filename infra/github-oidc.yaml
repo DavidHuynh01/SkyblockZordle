@@ -1,0 +1,158 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Keyless CI deploys. Lets GitHub Actions assume a deploy role via OpenID
+  Connect, so no long-lived AWS access keys ever live in the repository or in
+  GitHub secrets. Deployed once, by hand, before the pipeline can run.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub user or organisation that owns the repository
+  GitHubRepo:
+    Type: String
+    Description: Repository name
+  Branch:
+    Type: String
+    Default: main
+    Description: Only workflow runs on this branch may assume the role
+  StackName:
+    Type: String
+    Default: skyblockzordle
+    Description: The application stack this role is allowed to deploy
+
+Resources:
+  # AWS trusts tokens issued by GitHub's OIDC endpoint.
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${StackName}-github-deploy"
+      Description: Assumed by GitHub Actions to deploy the application stack
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              # Pinned to one repo AND one branch: a fork or a pull request
+              # cannot mint credentials.
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${Branch}"
+      Policies:
+        - PolicyName: deploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # CloudFormation drives the deployment of this stack only.
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResource
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ListStackResources
+                Resource:
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${StackName}/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/aws-sam-cli-managed-default/*"
+              # Expanding the SAM macro into plain CloudFormation.
+              - Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:aws:transform/Serverless-2016-10-31"
+              # SAM's managed bucket for build artefacts (--resolve-s3), plus
+              # the site bucket the built frontend is published to.
+              - Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketTagging
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - arn:aws:s3:::aws-sam-cli-managed-default*
+                  - arn:aws:s3:::aws-sam-cli-managed-default*/*
+                  - !Sub "arn:aws:s3:::${StackName}*"
+                  - !Sub "arn:aws:s3:::${StackName}*/*"
+              - Effect: Allow
+                Action:
+                  - lambda:*
+                Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${StackName}*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                  - dynamodb:DescribeTable
+                  - dynamodb:DescribeTimeToLive
+                  - dynamodb:UpdateTable
+                  - dynamodb:UpdateTimeToLive
+                  - dynamodb:TagResource
+                  - dynamodb:ListTagsOfResource
+                Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${StackName}*"
+              # The Lambda execution role is created and attached by the stack.
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                Resource: !Sub "arn:aws:iam::${AWS::AccountId}:role/${StackName}*"
+              # CloudFront has no resource-level permissions for these calls.
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:TagResource
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:CreateInvalidation
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DeleteLogGroup
+                  - logs:DescribeLogGroups
+                  - logs:PutRetentionPolicy
+                  - logs:TagResource
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${StackName}*"
+
+Outputs:
+  DeployRoleArn:
+    Description: Store as the AWS_DEPLOY_ROLE_ARN secret in GitHub
+    Value: !GetAtt DeployRole.Arn

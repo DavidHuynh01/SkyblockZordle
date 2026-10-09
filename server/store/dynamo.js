@@ -14,12 +14,17 @@ import {
   QueryCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { nextStreak, mergeTop, publicTop, TOP_LIMIT } from "../streaks.js";
 
 const scoreKey = (date, userId) => ({ pk: `DATE#${date}`, sk: `USER#${userId}` });
 const gameKey = (date, userId) => ({ pk: `GAME#${date}`, sk: `USER#${userId}` });
 const userKey = (userId) => ({ pk: `USER#${userId}`, sk: "PROFILE" });
 const STATS_KEY = { pk: "STATS", sk: "GLOBAL" };
 const dayKey = (date) => ({ pk: "STATS", sk: `DAY#${date}` });
+// A single item holding the top-N streaks. Ranking by streak would otherwise
+// need a Scan or a secondary index, both of which cost capacity; this row is
+// only rewritten when somebody beats their own record.
+const STREAKS_KEY = { pk: "STATS", sk: "STREAKS" };
 
 export function defaultClient() {
   return DynamoDBDocumentClient.from(new DynamoDBClient({}), {
@@ -57,19 +62,38 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
     // Counts a user the first time we see them, so "total players" is a real
     // number rather than a table scan.
     async upsertUser(user) {
-      const item = { ...userKey(user.id), ...user, lastLogin: Date.now() };
+      const fields = { ...user, lastLogin: Date.now() };
       try {
         await client.send(
           new PutCommand({
             TableName: tableName,
-            Item: { ...item, createdAt: Date.now() },
+            Item: { ...userKey(user.id), ...fields, createdAt: Date.now() },
             ConditionExpression: "attribute_not_exists(pk)",
           })
         );
         await bumpCounters({ users: 1 });
       } catch (err) {
         if (err?.name !== "ConditionalCheckFailedException") throw err;
-        await client.send(new PutCommand({ TableName: tableName, Item: item }));
+        // Returning player: patch the profile fields only. A whole-item Put
+        // here would wipe everything else the row carries — createdAt and the
+        // player's streak — on every login.
+        const names = {};
+        const values = {};
+        const sets = [];
+        for (const [attr, value] of Object.entries(fields)) {
+          names[`#${attr}`] = attr;
+          values[`:${attr}`] = value ?? null;
+          sets.push(`#${attr} = :${attr}`);
+        }
+        await client.send(
+          new UpdateCommand({
+            TableName: tableName,
+            Key: userKey(user.id),
+            UpdateExpression: `SET ${sets.join(", ")}`,
+            ExpressionAttributeNames: names,
+            ExpressionAttributeValues: values,
+          })
+        );
       }
     },
 
@@ -133,6 +157,49 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
         if (entry.won) deltas[`d${entry.guesses}`] = (deltas[`d${entry.guesses}`] || 0) + 1;
         await bumpCounters(deltas);
       }
+    },
+
+    // Credits a solve towards the player's streak. Called only for signed-in
+    // winners, so the streak board follows the same login rule as the rest of
+    // the leaderboard.
+    async recordStreak({ userId, name, avatar = null, puzzleNumber, now = Date.now() }) {
+      const prev = await client.send(
+        new GetCommand({ TableName: tableName, Key: userKey(userId) })
+      );
+      const s = nextStreak(prev?.Item, puzzleNumber);
+      if (!s.changed) return { streak: s.streak, maxStreak: s.maxStreak };
+
+      await client.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: userKey(userId),
+          UpdateExpression: "SET #st = :st, #mx = :mx, #lp = :lp",
+          ExpressionAttributeNames: { "#st": "streak", "#mx": "maxStreak", "#lp": "lastSolvedPuzzle" },
+          ExpressionAttributeValues: { ":st": s.streak, ":mx": s.maxStreak, ":lp": s.lastSolvedPuzzle },
+        })
+      );
+
+      if (s.improved) {
+        const cur = await client.send(
+          new GetCommand({ TableName: tableName, Key: STREAKS_KEY })
+        );
+        const top = mergeTop(cur?.Item?.top, {
+          userId,
+          name,
+          avatar,
+          maxStreak: s.maxStreak,
+          at: now,
+        });
+        await client.send(
+          new PutCommand({ TableName: tableName, Item: { ...STREAKS_KEY, top } })
+        );
+      }
+      return { streak: s.streak, maxStreak: s.maxStreak };
+    },
+
+    async topStreaks(limit = TOP_LIMIT) {
+      const res = await client.send(new GetCommand({ TableName: tableName, Key: STREAKS_KEY }));
+      return publicTop(res?.Item?.top, limit);
     },
 
     async leaderboard(dateKey, limit = 50) {

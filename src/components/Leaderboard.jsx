@@ -14,17 +14,18 @@ const DIST_KEYS = [1, 2, 3, 4, 5, 6, 7, 8];
 export default function Leaderboard({ onClose }) {
   const { enabled, user, signIn } = useAuth();
   const [entries, setEntries] = useState(null); // null = loading
+  const [streaks, setStreaks] = useState(null);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(false);
 
 
   useEffect(() => {
     let active = true;
-    const load = Promise.all([api.leaderboard().then((r) => r.entries || []), api.globalStats()]);
-    load
-      .then(([e, s]) => {
+    Promise.all([api.leaderboard(), api.globalStats()])
+      .then(([lb, s]) => {
         if (!active) return;
-        setEntries(e);
+        setEntries(lb.entries || []);
+        setStreaks(lb.streaks || []);
         setStats(s);
       })
       .catch(() => active && setError(true));
@@ -105,6 +106,38 @@ export default function Leaderboard({ onClose }) {
                       </span>
                       <span className="opacity-80">
                         {e.guesses}/8{e.timeMs ? ` · ${fmtTime(e.timeMs)}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+
+            {/* Longest streaks (all-time) */}
+            <h3 className="text-[10px] text-paneldark mb-2">Longest streaks</h3>
+            <div className="mc-panel-dark p-2 mb-4">
+              {streaks === null ? (
+                <p className="text-white text-[9px] text-center py-3 opacity-70">Loading…</p>
+              ) : streaks.length === 0 ? (
+                <p className="text-white text-[9px] text-center py-3 opacity-70">
+                  No streaks yet — solve two days in a row to start one.
+                </p>
+              ) : (
+                <ol className="space-y-1">
+                  {streaks.map((e) => (
+                    <li
+                      key={e.rank}
+                      className="flex items-center justify-between text-white text-[9px] px-1"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="opacity-60 w-5">#{e.rank}</span>
+                        {e.avatar && (
+                          <img src={e.avatar} alt="" style={{ width: 16, height: 16 }} />
+                        )}
+                        <span>{e.name}</span>
+                      </span>
+                      <span className="opacity-80">
+                        🔥 {e.maxStreak} {e.maxStreak === 1 ? "day" : "days"}
                       </span>
                     </li>
                   ))}

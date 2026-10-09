@@ -150,3 +150,40 @@ test("auth routes are disabled when Discord is not configured", async () => {
   // the game itself still works
   assert.equal((await call(api, { method: "GET", path: "/api/daily" })).status, 200);
 });
+
+test("a signed-in solve earns a streak and lands on the streak board", async () => {
+  const { api, store } = setup();
+  const res = await call(api, {
+    method: "POST", path: "/api/guess",
+    headers: auth(), body: { itemId: answerFor(today()).id },
+  });
+  assert.equal(res.body.streak, 1);
+  assert.equal(res.body.maxStreak, 1);
+  const top = await store.topStreaks();
+  assert.equal(top.length, 1);
+  assert.deepEqual(top[0], { rank: 1, name: "Steve", avatar: null, maxStreak: 1 });
+});
+
+test("an anonymous solve does not reach the streak board", async () => {
+  const { api, store } = setup();
+  const res = await call(api, {
+    method: "POST", path: "/api/guess",
+    body: { itemId: answerFor(today()).id, anonId: "abc" },
+  });
+  assert.equal(res.body.correct, true);
+  assert.equal(res.body.streak, undefined, "no streak is reported to anonymous players");
+  assert.equal((await store.topStreaks()).length, 0, "login is required to hold a streak");
+});
+
+test("the leaderboard route serves the streak board", async () => {
+  const { api } = setup();
+  await call(api, {
+    method: "POST", path: "/api/guess",
+    headers: auth(), body: { itemId: answerFor(today()).id },
+  });
+  const res = await call(api, { method: "GET", path: "/api/leaderboard" });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.streaks[0].name, "Steve");
+  assert.equal(res.body.streaks[0].maxStreak, 1);
+  assert.equal(res.body.streaks[0].userId, undefined, "user ids must not leave the server");
+});
