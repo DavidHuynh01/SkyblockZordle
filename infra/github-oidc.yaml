@@ -45,13 +45,23 @@ Resources:
             Principal:
               Federated: !Ref GitHubOidcProvider
             Action: sts:AssumeRoleWithWebIdentity
+            # Pinned to one repo AND one branch: a fork or a pull request
+            # cannot mint credentials.
+            #
+            # The real pins are `repository` and `ref`, matched exactly.
+            # `sub` is matched loosely because GitHub now embeds immutable
+            # numeric ids in it (repo:owner@123/name@456:ref:refs/heads/main),
+            # so the old literal no longer matches — but IAM refuses a trust
+            # policy that does not constrain `sub` at all, hence both forms.
             Condition:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
-              # Pinned to one repo AND one branch: a fork or a pull request
-              # cannot mint credentials.
+                token.actions.githubusercontent.com:repository: !Sub "${GitHubOrg}/${GitHubRepo}"
+                token.actions.githubusercontent.com:ref: !Sub "refs/heads/${Branch}"
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${Branch}"
+                token.actions.githubusercontent.com:sub:
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${Branch}"
+                  - !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:ref:refs/heads/${Branch}"
       Policies:
         - PolicyName: deploy
           PolicyDocument:
