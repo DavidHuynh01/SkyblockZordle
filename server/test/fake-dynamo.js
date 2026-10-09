@@ -24,11 +24,33 @@ export function createFakeClient() {
 
       if (name === "UpdateCommand") {
         const cur = items.get(key(i.Key)) || { ...i.Key };
-        const adds = i.UpdateExpression.replace(/^ADD\s+/, "").split(",");
-        for (const part of adds) {
-          const [nameTok, valTok] = part.trim().split(/\s+/);
-          const attr = i.ExpressionAttributeNames[nameTok];
-          cur[attr] = Number(cur[attr] || 0) + Number(i.ExpressionAttributeValues[valTok]);
+        const names = i.ExpressionAttributeNames || {};
+        const vals = i.ExpressionAttributeValues || {};
+        const expr = i.UpdateExpression;
+        const resolve = (tok) => (names[tok] !== undefined ? names[tok] : tok);
+
+        const addPart = /ADD\s+(.*?)(?=\s+SET\s+|$)/is.exec(expr);
+        if (addPart) {
+          for (const part of addPart[1].split(",")) {
+            const [nameTok, valTok] = part.trim().split(/\s+/);
+            const attr = resolve(nameTok);
+            cur[attr] = Number(cur[attr] || 0) + Number(vals[valTok]);
+          }
+        }
+
+        const setPart = /SET\s+(.*?)(?=\s+ADD\s+|$)/is.exec(expr);
+        if (setPart) {
+          for (const part of setPart[1].split(",")) {
+            const [lhs, rhs] = part.split("=").map((x) => x.trim());
+            const attr = resolve(lhs);
+            const inf = /^if_not_exists\(\s*([^,]+)\s*,\s*(:[\w]+)\s*\)$/.exec(rhs);
+            if (inf) {
+              const existing = resolve(inf[1].trim());
+              if (cur[existing] === undefined) cur[attr] = vals[inf[2]];
+            } else {
+              cur[attr] = vals[rhs];
+            }
+          }
         }
         items.set(key(i.Key), cur);
         return { Attributes: cur };

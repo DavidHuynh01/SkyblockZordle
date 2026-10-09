@@ -6,7 +6,7 @@ import { createFakeClient } from "./fake-dynamo.js";
 const TABLE = "test-table";
 const entry = (over = {}) => ({
   name: "Steve", date: "2026-10-07", puzzleNumber: 1,
-  guesses: 3, won: true, timeMs: 1000, clientId: "c1", createdAt: 100, ...over,
+  guesses: 3, won: true, timeMs: 1000, userId: "c1", createdAt: 100, ...over,
 });
 const setup = () => {
   const client = createFakeClient();
@@ -43,7 +43,7 @@ test("re-submitting the same day does not double-count played", async () => {
   await store.addScore(entry({ name: "Steve", guesses: 3 }));
   await store.addScore(entry({ name: "Renamed", guesses: 3 }));
   const s = await store.globalStats("2026-10-07");
-  assert.equal(s.played, 1, "same player + same day is still one play");
+  assert.equal(s.played, 1, "same user + same day is still one play");
   assert.equal(s.wins, 1);
   assert.equal(s.dist[3], 1);
   const lb = await store.leaderboard("2026-10-07");
@@ -64,10 +64,10 @@ test("a re-submission that changes the result corrects the counters", async () =
 
 test("leaderboard ranks by guesses, then time, and excludes losses", async () => {
   const { store } = setup();
-  await store.addScore(entry({ clientId: "a", name: "A", guesses: 4, timeMs: 10 }));
-  await store.addScore(entry({ clientId: "b", name: "B", guesses: 2, timeMs: 900 }));
-  await store.addScore(entry({ clientId: "c", name: "C", guesses: 4, timeMs: 5 }));
-  await store.addScore(entry({ clientId: "d", name: "D", won: false, guesses: 8 }));
+  await store.addScore(entry({ userId: "a", name: "A", guesses: 4, timeMs: 10 }));
+  await store.addScore(entry({ userId: "b", name: "B", guesses: 2, timeMs: 900 }));
+  await store.addScore(entry({ userId: "c", name: "C", guesses: 4, timeMs: 5 }));
+  await store.addScore(entry({ userId: "d", name: "D", won: false, guesses: 8 }));
   const lb = await store.leaderboard("2026-10-07");
   assert.deepEqual(lb.map((e) => e.name), ["B", "C", "A"]);
   assert.deepEqual(lb.map((e) => e.rank), [1, 2, 3]);
@@ -75,8 +75,8 @@ test("leaderboard ranks by guesses, then time, and excludes losses", async () =>
 
 test("scores are scoped to their own day", async () => {
   const { store } = setup();
-  await store.addScore(entry({ date: "2026-10-06", clientId: "x" }));
-  await store.addScore(entry({ date: "2026-10-07", clientId: "y" }));
+  await store.addScore(entry({ date: "2026-10-06", userId: "x" }));
+  await store.addScore(entry({ date: "2026-10-07", userId: "y" }));
   assert.equal((await store.leaderboard("2026-10-07")).length, 1);
   const s = await store.globalStats("2026-10-07");
   assert.equal(s.played, 2, "counters are all-time");

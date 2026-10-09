@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, getPlayerName, setPlayerName } from "../utils/api.js";
+import { api } from "../utils/api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function fmtTime(ms) {
   if (!ms) return "";
@@ -11,12 +12,11 @@ function fmtTime(ms) {
 const DIST_KEYS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function Leaderboard({ onClose }) {
+  const { enabled, user, signIn } = useAuth();
   const [entries, setEntries] = useState(null); // null = loading
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(false);
 
-  const [name, setName] = useState(getPlayerName());
-  const [savedMsg, setSavedMsg] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -33,11 +33,6 @@ export default function Leaderboard({ onClose }) {
     };
   }, []);
 
-  function saveName() {
-    setPlayerName(name.trim().slice(0, 16));
-    setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 1500);
-  }
 
   const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, ...(stats?.dist || {}) };
   const maxDist = Math.max(1, ...DIST_KEYS.map((k) => dist[k] || 0));
@@ -64,24 +59,26 @@ export default function Leaderboard({ onClose }) {
 
         {!error && (
           <>
-            {/* Display name */}
-            <div className="mb-4">
-              <label className="text-[8px] text-paneldark uppercase opacity-70">
-                Your display name
-              </label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  value={name}
-                  maxLength={16}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Anonymous"
-                  className="flex-1 bg-[#3a3a3a] text-white px-3 py-2 text-[10px] outline-none mc-slot"
-                />
-                <button className="mc-btn text-[9px]" onClick={saveName}>
-                  {savedMsg ? "Saved!" : "Save"}
-                </button>
+            {/* Who you are on the board */}
+            {enabled && (
+              <div className="mb-4 text-center">
+                {user ? (
+                  <p className="text-[9px] text-paneldark">
+                    Playing as <span className="text-[#3f7d2e]">{user.username}</span> — solve
+                    today's puzzle and you'll appear here.
+                  </p>
+                ) : (
+                  <>
+                    <button onClick={signIn} className="mc-btn text-[10px]" style={{ background: "#5865F2" }}>
+                      Login with Discord
+                    </button>
+                    <p className="text-[8px] text-paneldark opacity-70 mt-2">
+                      Required to appear on the leaderboard.
+                    </p>
+                  </>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Today's top solvers */}
             <h3 className="text-[10px] text-paneldark mb-2">Today's fastest solves</h3>
@@ -101,6 +98,9 @@ export default function Leaderboard({ onClose }) {
                     >
                       <span className="flex items-center gap-2">
                         <span className="opacity-60 w-5">#{e.rank}</span>
+                        {e.avatar && (
+                          <img src={e.avatar} alt="" style={{ width: 16, height: 16 }} />
+                        )}
                         <span>{e.name}</span>
                       </span>
                       <span className="opacity-80">

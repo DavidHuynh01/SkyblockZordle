@@ -15,7 +15,9 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 
-const scoreKey = (date, clientId) => ({ pk: `DATE#${date}`, sk: `CLIENT#${clientId}` });
+const scoreKey = (date, userId) => ({ pk: `DATE#${date}`, sk: `USER#${userId}` });
+const gameKey = (date, userId) => ({ pk: `GAME#${date}`, sk: `USER#${userId}` });
+const userKey = (userId) => ({ pk: `USER#${userId}`, sk: "PROFILE" });
 const STATS_KEY = { pk: "STATS", sk: "GLOBAL" };
 
 export function defaultClient() {
@@ -51,8 +53,50 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
   }
 
   return {
+    async upsertUser(user) {
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: { ...userKey(user.id), ...user, lastLogin: Date.now() },
+        })
+      );
+    },
+
+    // Server-side game state: the player's guess count for a day lives here,
+    // so a score can never be whatever the browser claims it is.
+    async recordGuess({ date, userId, now = Date.now() }) {
+      const res = await client.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: gameKey(date, userId),
+          UpdateExpression:
+            "ADD #g :one SET #s = if_not_exists(#s, :now)",
+          ExpressionAttributeNames: { "#g": "guesses", "#s": "startedAt" },
+          ExpressionAttributeValues: { ":one": 1, ":now": now },
+          ReturnValues: "ALL_NEW",
+        })
+      );
+      const it = res.Attributes || {};
+      return {
+        guesses: Number(it.guesses || 0),
+        startedAt: Number(it.startedAt || now),
+        solved: Boolean(it.solved),
+      };
+    },
+
+    async markSolved({ date, userId, now = Date.now() }) {
+      await client.send(
+        new UpdateCommand({
+          TableName: tableName,
+          Key: gameKey(date, userId),
+          UpdateExpression: "SET solved = :t, solvedAt = :now",
+          ExpressionAttributeValues: { ":t": true, ":now": now },
+        })
+      );
+    },
+
     async addScore(entry) {
-      const item = { ...scoreKey(entry.date, entry.clientId), ...entry };
+      const item = { ...scoreKey(entry.date, entry.userId), ...entry };
       try {
         await client.send(
           new PutCommand({
@@ -70,7 +114,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
         if (err?.name !== "ConditionalCheckFailedException") throw err;
         // Already played today: replace the row and correct the counters.
         const prev = await client.send(
-          new GetCommand({ TableName: tableName, Key: scoreKey(entry.date, entry.clientId) })
+          new GetCommand({ TableName: tableName, Key: scoreKey(entry.date, entry.userId) })
         );
         const old = prev?.Item;
         await client.send(new PutCommand({ TableName: tableName, Item: item }));
@@ -99,7 +143,13 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
             a.createdAt - b.createdAt
         )
         .slice(0, limit)
-        .map((s, i) => ({ rank: i + 1, name: s.name, guesses: s.guesses, timeMs: s.timeMs || 0 }));
+        .map((s, i) => ({
+          rank: i + 1,
+          name: s.name,
+          avatar: s.avatar || null,
+          guesses: s.guesses,
+          timeMs: s.timeMs || 0,
+        }));
     },
 
     async globalStats(dateKey) {

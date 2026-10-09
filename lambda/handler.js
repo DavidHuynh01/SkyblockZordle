@@ -2,9 +2,11 @@
 // Shares all routing and game logic with the local Express server.
 import { createApi, handleRequest } from "../server/api.js";
 import { createDynamoStore } from "../server/store/dynamo.js";
+import { loadConfig } from "../server/config.js";
 
 const store = createDynamoStore({ tableName: process.env.TABLE_NAME });
-const api = createApi(store);
+let apiPromise = null;
+const getApi = () => (apiPromise ||= loadConfig().then((cfg) => createApi(store, cfg)));
 
 // CORS headers are added by the Function URL's own CORS config (see
 // infra/template.yaml). Setting them here too would send duplicate
@@ -28,12 +30,17 @@ export async function handler(event) {
   }
 
   try {
-    const res = await handleRequest(api, {
+    const res = await handleRequest(await getApi(), {
       method,
       path,
       query: event?.queryStringParameters || {},
       body,
+      headers: event?.headers || {},
     });
+    // Redirects (OAuth) carry a location header and no body.
+    if (res.headers?.location) {
+      return { statusCode: res.status, headers: res.headers, body: "" };
+    }
     return {
       statusCode: res.status,
       headers: JSON_HEADERS,

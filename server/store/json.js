@@ -10,21 +10,43 @@ function load() {
   try {
     return JSON.parse(readFileSync(FILE, "utf8"));
   } catch {
-    return { scores: [] };
+    return { scores: [], users: {}, games: {} };
   }
 }
 
 export function createJsonStore() {
   const db = load();
+  db.users = db.users || {};
+  db.games = db.games || {};
   const save = () => {
     if (!existsSync(DIR)) mkdirSync(DIR, { recursive: true });
     writeFileSync(FILE, JSON.stringify(db));
   };
 
   return {
+    async upsertUser(user) {
+      db.users[user.id] = { ...user, lastLogin: Date.now() };
+      save();
+    },
+
+    async recordGuess({ date, userId, now = Date.now() }) {
+      const k = `${date}|${userId}`;
+      const g = db.games[k] || { guesses: 0, startedAt: now, solved: false };
+      g.guesses += 1;
+      db.games[k] = g;
+      save();
+      return { guesses: g.guesses, startedAt: g.startedAt, solved: !!g.solved };
+    },
+
+    async markSolved({ date, userId, now = Date.now() }) {
+      const k = `${date}|${userId}`;
+      db.games[k] = { ...(db.games[k] || { guesses: 1, startedAt: now }), solved: true, solvedAt: now };
+      save();
+    },
+
     async addScore(entry) {
       db.scores = db.scores.filter(
-        (s) => !(s.clientId === entry.clientId && s.date === entry.date)
+        (s) => !(s.userId === entry.userId && s.date === entry.date)
       );
       db.scores.push(entry);
       save();
@@ -40,7 +62,13 @@ export function createJsonStore() {
             a.createdAt - b.createdAt
         )
         .slice(0, limit)
-        .map((s, i) => ({ rank: i + 1, name: s.name, guesses: s.guesses, timeMs: s.timeMs || 0 }));
+        .map((s, i) => ({
+          rank: i + 1,
+          name: s.name,
+          avatar: s.avatar || null,
+          guesses: s.guesses,
+          timeMs: s.timeMs || 0,
+        }));
     },
 
     async globalStats(dateKey) {

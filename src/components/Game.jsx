@@ -15,7 +15,7 @@ import {
   buildShareText,
 } from "../utils/game.js";
 import { recordResult, winPercent } from "../utils/stats.js";
-import { api, getClientId, getPlayerName } from "../utils/api.js";
+import { api } from "../utils/api.js";
 
 const MAX_GUESSES = 8;
 const STORAGE_KEY = "skyblockzordle-daily-v2";
@@ -88,25 +88,18 @@ export default function Game({ mode, onBack }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ date, guesses, status, answer }));
   }, [isDaily, date, guesses, status, answer]);
 
-  // On round end (daily): record local stats + submit to the leaderboard.
+  // On round end (daily): local stats only. A signed-in player's leaderboard
+  // entry is written by the server when it sees the winning guess, so nothing
+  // here is trusted for ranking.
   useEffect(() => {
     if (!isDaily || status === "playing") return;
-    const won = status === "won";
-    const puzzleNumber = puzzleNum || getPuzzleNumber();
-    setStats(recordResult({ won, guesses: guesses.length, puzzleNumber }));
-    if (!offline && date) {
-      const timeMs = startRef.current ? Date.now() - startRef.current : 0;
-      api
-        .submitScore({
-          name: getPlayerName() || "Anonymous",
-          date,
-          guesses: guesses.length,
-          won,
-          timeMs,
-          clientId: getClientId(),
-        })
-        .catch(() => {});
-    }
+    setStats(
+      recordResult({
+        won: status === "won",
+        guesses: guesses.length,
+        puzzleNumber: puzzleNum || getPuzzleNumber(),
+      })
+    );
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function revealAnswer() {

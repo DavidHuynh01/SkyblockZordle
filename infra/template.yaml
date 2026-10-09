@@ -7,6 +7,14 @@ Parameters:
     Type: String
     Default: "*"
     Description: Origin allowed to call the API (set to your site URL once deployed)
+  SsmPrefix:
+    Type: String
+    Default: /skyblockzordle
+    Description: SSM Parameter Store prefix holding the Discord + session secrets
+  ApiBaseUrl:
+    Type: String
+    Default: ""
+    Description: The API's own base URL, used to build the Discord OAuth redirect URI
 
 Globals:
   Function:
@@ -49,9 +57,22 @@ Resources:
         Variables:
           TABLE_NAME: !Ref ScoresTable
           ALLOWED_ORIGIN: !Ref AllowedOrigin
+          SITE_URL: !Ref AllowedOrigin
+          SSM_PREFIX: !Ref SsmPrefix
+          REDIRECT_URI: !Sub "${ApiBaseUrl}/api/auth/callback"
+      # No ReservedConcurrentExecutions: new accounts have a total concurrency
+      # quota of 10, and reserving any of it drops the unreserved pool below the
+      # required minimum. The account-level cap already bounds runaway cost.
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ScoresTable
+        - Statement:                        # read the Discord + session secrets
+            - Effect: Allow
+              Action: [ssm:GetParameters, ssm:GetParameter]
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SsmPrefix}/*"
+            - Effect: Allow
+              Action: kms:Decrypt
+              Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/ssm"
       FunctionUrlConfig:
         AuthType: NONE          # public game API, no credentials needed
         Cors:

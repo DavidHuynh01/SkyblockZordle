@@ -6,6 +6,7 @@ import { existsSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createApi, handleRequest } from "./api.js";
+import { loadConfig } from "./config.js";
 import { createJsonStore } from "./store/json.js";
 import { createDynamoStore } from "./store/dynamo.js";
 
@@ -15,7 +16,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const store = process.env.TABLE_NAME
   ? createDynamoStore({ tableName: process.env.TABLE_NAME })
   : createJsonStore();
-const api = createApi(store);
+const api = createApi(store, await loadConfig());
 
 const app = express();
 app.use(cors());
@@ -23,12 +24,14 @@ app.use(express.json());
 
 app.all("/api/*", async (req, res) => {
   try {
-    const { status, body } = await handleRequest(api, {
+    const { status, body, headers } = await handleRequest(api, {
       method: req.method,
       path: req.path,
       query: req.query,
       body: req.body,
+      headers: req.headers,
     });
+    if (headers) res.set(headers);
     body === null ? res.status(status).end() : res.status(status).json(body);
   } catch (err) {
     console.error(err);
