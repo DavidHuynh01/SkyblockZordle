@@ -1,6 +1,6 @@
 // Thin API client. In dev, "/api" is proxied to the local server (see
 // vite.config.js). In prod, VITE_API_URL points at the Lambda Function URL.
-import { getToken } from "./auth.js";
+import { getToken, getAnonId } from "./auth.js";
 
 const BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -27,7 +27,7 @@ async function jpost(path, body) {
 
 export const api = {
   daily: () => jget("/daily"),
-  guess: (date, itemId) => jpost("/guess", { date, itemId }),
+  guess: (date, itemId) => jpost("/guess", { date, itemId, anonId: getAnonId() }),
   reveal: (date) => jget(`/reveal?date=${encodeURIComponent(date)}`),
   leaderboard: (date) => jget(date ? `/leaderboard?date=${date}` : "/leaderboard"),
   globalStats: () => jget("/stats"),

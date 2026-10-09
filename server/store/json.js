@@ -18,6 +18,7 @@ export function createJsonStore() {
   const db = load();
   db.users = db.users || {};
   db.games = db.games || {};
+  db.days = db.days || {};
   const save = () => {
     if (!existsSync(DIR)) mkdirSync(DIR, { recursive: true });
     writeFileSync(FILE, JSON.stringify(db));
@@ -25,7 +26,7 @@ export function createJsonStore() {
 
   return {
     async upsertUser(user) {
-      db.users[user.id] = { ...user, lastLogin: Date.now() };
+      db.users[user.id] = { ...(db.users[user.id] || { createdAt: Date.now() }), ...user, lastLogin: Date.now() };
       save();
     },
 
@@ -34,11 +35,17 @@ export function createJsonStore() {
       const g = db.games[k] || { guesses: 0, startedAt: now, solved: false };
       g.guesses += 1;
       db.games[k] = g;
+      if (g.guesses === 1) {
+        const d = (db.days[date] = db.days[date] || { players: 0, solved: 0 });
+        d.players += 1;
+      }
       save();
       return { guesses: g.guesses, startedAt: g.startedAt, solved: !!g.solved };
     },
 
     async markSolved({ date, userId, now = Date.now() }) {
+      const d = (db.days[date] = db.days[date] || { players: 0, solved: 0 });
+      d.solved += 1;
       const k = `${date}|${userId}`;
       db.games[k] = { ...(db.games[k] || { guesses: 1, startedAt: now }), solved: true, solvedAt: now };
       save();
@@ -83,8 +90,9 @@ export function createJsonStore() {
         wins: wins.length,
         winPercent: all.length ? Math.round((wins.length / all.length) * 100) : 0,
         dist,
-        todayPlayers: all.filter((s) => s.date === dateKey).length,
-        todaySolved: all.filter((s) => s.date === dateKey && s.won).length,
+        totalUsers: Object.keys(db.users).length,
+        todayPlayers: db.days[dateKey]?.players || 0,
+        todaySolved: db.days[dateKey]?.solved || 0,
       };
     },
   };

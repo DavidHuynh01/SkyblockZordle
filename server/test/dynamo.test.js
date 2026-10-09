@@ -25,8 +25,9 @@ test("a new score increments the global counters", async () => {
   assert.equal(s.wins, 1);
   assert.equal(s.winPercent, 100);
   assert.equal(s.dist[3], 1);
-  assert.equal(s.todayPlayers, 1);
-  assert.equal(s.todaySolved, 1);
+  // todayPlayers / todaySolved are driven by recordGuess + markSolved (i.e. by
+  // actually playing), not by writing a score row.
+  assert.equal(s.todayPlayers, 0);
 });
 
 test("a loss counts as played but not won", async () => {
@@ -80,5 +81,34 @@ test("scores are scoped to their own day", async () => {
   assert.equal((await store.leaderboard("2026-10-07")).length, 1);
   const s = await store.globalStats("2026-10-07");
   assert.equal(s.played, 2, "counters are all-time");
-  assert.equal(s.todayPlayers, 1, "today is one day only");
+  assert.equal((await store.leaderboard("2026-10-06")).length, 1, "each day has its own board");
+});
+
+test("total users counts each person once, however often they log in", async () => {
+  const { store } = setup();
+  await store.upsertUser({ id: "u1", username: "Steve" });
+  await store.upsertUser({ id: "u1", username: "Steve" }); // logs in again
+  await store.upsertUser({ id: "u2", username: "Alex" });
+  const s = await store.globalStats("2026-10-07");
+  assert.equal(s.totalUsers, 2);
+});
+
+test("daily players counts a person once no matter how many guesses", async () => {
+  const { store } = setup();
+  for (let i = 0; i < 5; i++) await store.recordGuess({ date: "2026-10-07", userId: "u1" });
+  await store.recordGuess({ date: "2026-10-07", userId: "u2" });
+  const s = await store.globalStats("2026-10-07");
+  assert.equal(s.todayPlayers, 2, "two people played, not six guesses");
+  assert.equal(s.todaySolved, 0);
+});
+
+test("daily solved counts completions, and days are independent", async () => {
+  const { store } = setup();
+  await store.recordGuess({ date: "2026-10-07", userId: "u1" });
+  await store.markSolved({ date: "2026-10-07", userId: "u1" });
+  await store.recordGuess({ date: "2026-10-08", userId: "u2" });
+  const a = await store.globalStats("2026-10-07");
+  const b = await store.globalStats("2026-10-08");
+  assert.equal(a.todayPlayers, 1); assert.equal(a.todaySolved, 1);
+  assert.equal(b.todayPlayers, 1); assert.equal(b.todaySolved, 0, "yesterday's solve doesn't leak");
 });

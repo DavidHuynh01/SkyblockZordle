@@ -119,6 +119,7 @@ export default function Leaderboard({ onClose }) {
                 <div className="flex justify-around text-center text-paneldark mb-3">
                   <Stat label="Players today" value={stats.todayPlayers} />
                   <Stat label="Solved today" value={stats.todaySolved} />
+                  <Stat label="Total players" value={stats.totalUsers ?? 0} />
                   <Stat label="Global win %" value={stats.winPercent} />
                 </div>
                 <div className="space-y-1">

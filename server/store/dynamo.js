@@ -19,6 +19,7 @@ const scoreKey = (date, userId) => ({ pk: `DATE#${date}`, sk: `USER#${userId}` }
 const gameKey = (date, userId) => ({ pk: `GAME#${date}`, sk: `USER#${userId}` });
 const userKey = (userId) => ({ pk: `USER#${userId}`, sk: "PROFILE" });
 const STATS_KEY = { pk: "STATS", sk: "GLOBAL" };
+const dayKey = (date) => ({ pk: "STATS", sk: `DAY#${date}` });
 
 export function defaultClient() {
   return DynamoDBDocumentClient.from(new DynamoDBClient({}), {
@@ -30,7 +31,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
   if (!tableName) throw new Error("tableName is required");
 
   // Builds an "ADD a :a, b :b" update, skipping zero deltas.
-  async function bumpCounters(deltas) {
+  async function bumpCounters(deltas, key = STATS_KEY) {
     const names = {};
     const values = {};
     const parts = [];
@@ -44,7 +45,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
     await client.send(
       new UpdateCommand({
         TableName: tableName,
-        Key: STATS_KEY,
+        Key: key,
         UpdateExpression: `ADD ${parts.join(", ")}`,
         ExpressionAttributeNames: names,
         ExpressionAttributeValues: values,
@@ -53,13 +54,23 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
   }
 
   return {
+    // Counts a user the first time we see them, so "total players" is a real
+    // number rather than a table scan.
     async upsertUser(user) {
-      await client.send(
-        new PutCommand({
-          TableName: tableName,
-          Item: { ...userKey(user.id), ...user, lastLogin: Date.now() },
-        })
-      );
+      const item = { ...userKey(user.id), ...user, lastLogin: Date.now() };
+      try {
+        await client.send(
+          new PutCommand({
+            TableName: tableName,
+            Item: { ...item, createdAt: Date.now() },
+            ConditionExpression: "attribute_not_exists(pk)",
+          })
+        );
+        await bumpCounters({ users: 1 });
+      } catch (err) {
+        if (err?.name !== "ConditionalCheckFailedException") throw err;
+        await client.send(new PutCommand({ TableName: tableName, Item: item }));
+      }
     },
 
     // Server-side game state: the player's guess count for a day lives here,
@@ -77,14 +88,13 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
         })
       );
       const it = res.Attributes || {};
-      return {
-        guesses: Number(it.guesses || 0),
-        startedAt: Number(it.startedAt || now),
-        solved: Boolean(it.solved),
-      };
+      const guesses = Number(it.guesses || 0);
+      if (guesses === 1) await bumpCounters({ players: 1 }, dayKey(date));
+      return { guesses, startedAt: Number(it.startedAt || now), solved: Boolean(it.solved) };
     },
 
     async markSolved({ date, userId, now = Date.now() }) {
+      await bumpCounters({ solved: 1 }, dayKey(date));
       await client.send(
         new UpdateCommand({
           TableName: tableName,
@@ -153,18 +163,12 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
     },
 
     async globalStats(dateKey) {
-      const [counters, today] = await Promise.all([
+      const [counters, day] = await Promise.all([
         client.send(new GetCommand({ TableName: tableName, Key: STATS_KEY })),
-        client.send(
-          new QueryCommand({
-            TableName: tableName,
-            KeyConditionExpression: "pk = :pk",
-            ExpressionAttributeValues: { ":pk": `DATE#${dateKey}` },
-          })
-        ),
+        client.send(new GetCommand({ TableName: tableName, Key: dayKey(dateKey) })),
       ]);
       const c = counters?.Item || {};
-      const items = today.Items || [];
+      const d = day?.Item || {};
       const dist = {};
       for (let g = 1; g <= 8; g++) dist[g] = Number(c[`d${g}`] || 0);
       const played = Number(c.played || 0);
@@ -174,8 +178,9 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
         wins,
         winPercent: played ? Math.round((wins / played) * 100) : 0,
         dist,
-        todayPlayers: items.length,
-        todaySolved: items.filter((s) => s.won).length,
+        totalUsers: Number(c.users || 0),
+        todayPlayers: Number(d.players || 0),
+        todaySolved: Number(d.solved || 0),
       };
     },
   };

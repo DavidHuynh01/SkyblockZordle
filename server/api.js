@@ -82,14 +82,20 @@ export function createApi(store, config = {}, deps = {}) {
       const answer = answerFor(day);
       const correct = guess.id === answer.id;
       const user = userFrom(headers);
+      // Anonymous players are tracked for the daily counts only (an opaque
+      // browser id), never for ranking.
+      const anonId = typeof body.anonId === "string" ? body.anonId.slice(0, 64).replace(/[^\w-]/g, "") : "";
+      const playerId = user ? user.id : anonId ? `anon:${anonId}` : null;
       let recorded = null;
 
-      if (user) {
-        const state = await store.recordGuess({ date: day, userId: user.id });
+      if (playerId) {
+        const state = await store.recordGuess({ date: day, userId: playerId });
         recorded = { guesses: state.guesses, alreadySolved: state.solved };
         if (correct && !state.solved && state.guesses <= MAX_GUESSES) {
+          await store.markSolved({ date: day, userId: playerId });
+        }
+        if (user && correct && !state.solved && state.guesses <= MAX_GUESSES) {
           const timeMs = Math.max(0, Date.now() - state.startedAt);
-          await store.markSolved({ date: day, userId: user.id });
           await store.addScore({
             userId: user.id,
             name: user.username,

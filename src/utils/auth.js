@@ -32,3 +32,19 @@ export const clearToken = () => {
     /* ignore */
   }
 };
+
+// An opaque per-browser id so anonymous players can be counted once a day.
+// Never used for ranking — only for the "players today" number.
+const ANON_KEY = "skyblockzordle-anon";
+export function getAnonId() {
+  try {
+    let id = localStorage.getItem(ANON_KEY);
+    if (!id) {
+      id = "a" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem(ANON_KEY, id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
+}

@@ -40,6 +40,7 @@ export default function Game({ mode, onBack }) {
   const [showHelp, setShowHelp] = useState(false);
   const [showLb, setShowLb] = useState(false);
   const [confirmGiveUp, setConfirmGiveUp] = useState(false);
+  const [todayStats, setTodayStats] = useState(null);
   const startRef = useRef(null);
 
   // ---- Daily setup: fetch puzzle meta from the server (falls back to a local
@@ -97,6 +98,7 @@ export default function Game({ mode, onBack }) {
   useEffect(() => {
     if (!isDaily || status === "playing") return;
     status === "won" ? sfx.win() : sfx.lose();
+    api.globalStats().then(setTodayStats).catch(() => {});
     setStats(
       recordResult({
         won: status === "won",
@@ -285,6 +287,12 @@ export default function Game({ mode, onBack }) {
                   🏆 Leaderboard
                 </button>
               </div>
+              {todayStats && (
+                <p className="text-[9px] text-paneldark text-center">
+                  <b>{todayStats.todaySolved}</b> of <b>{todayStats.todayPlayers}</b>{" "}
+                  {todayStats.todayPlayers === 1 ? "player" : "players"} solved today's puzzle
+                </p>
+              )}
               <p className="text-[8px] text-paneldark opacity-70 text-center">
                 Come back tomorrow for a new item!
               </p>
