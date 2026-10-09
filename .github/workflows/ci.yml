@@ -50,6 +50,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug OIDC subject
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2)
+          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="${PAYLOAD}="; done
+          echo "$PAYLOAD" | tr '_-' '/+' | base64 -d | jq '{sub, aud, repository, ref}'
+
       # Keyless: GitHub hands AWS a short-lived OIDC token and assumes a role.
       # No long-lived AWS access keys are stored in this repository.
       - uses: aws-actions/configure-aws-credentials@v4
