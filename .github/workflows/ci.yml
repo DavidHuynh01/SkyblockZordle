@@ -44,6 +44,10 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Records a deployment against the repo, linked to the live site.
+    environment:
+      name: production
+      url: ${{ vars.SITE_URL }}
     permissions:
       id-token: write # required to request the OIDC token
       contents: read

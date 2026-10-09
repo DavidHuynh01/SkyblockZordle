@@ -15,6 +15,10 @@ Parameters:
     Type: String
     Default: main
     Description: Only workflow runs on this branch may assume the role
+  Environment:
+    Type: String
+    Default: production
+    Description: GitHub deployment environment the deploy job runs in
   StackName:
     Type: String
     Default: skyblockzordle
@@ -58,10 +62,16 @@ Resources:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
                 token.actions.githubusercontent.com:repository: !Sub "${GitHubOrg}/${GitHubRepo}"
                 token.actions.githubusercontent.com:ref: !Sub "refs/heads/${Branch}"
+              # A job that declares a deployment environment gets
+              # ":environment:<name>" in place of ":ref:<branch>", so both
+              # shapes are listed. The `ref` pin above still restricts this to
+              # the branch either way.
               StringLike:
                 token.actions.githubusercontent.com:sub:
                   - !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/${Branch}"
                   - !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:ref:refs/heads/${Branch}"
+                  - !Sub "repo:${GitHubOrg}/${GitHubRepo}:environment:${Environment}"
+                  - !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:environment:${Environment}"
       Policies:
         - PolicyName: deploy
           PolicyDocument:
