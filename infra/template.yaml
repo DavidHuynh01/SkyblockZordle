@@ -22,6 +22,9 @@ Globals:
     Timeout: 5    # bound worst-case duration billing
     MemorySize: 256
     Architectures: [arm64]   # cheaper per ms than x86
+    # Created by the CI stack (infra/github-oidc.yaml). The deploy role may only
+    # create or widen roles that carry it, so every function role needs it.
+    PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/${AWS::StackName}-lambda-boundary"
 
 Resources:
   ScoresTable:
