@@ -1,0 +1,12 @@
+# The API image is built from the repo root, because the API shares its game
+# logic and item data with the frontend in src/. This is an allowlist: only
+# what the API needs is sent to Docker, so secrets (.env), git history, the
+# licensed music and the frontend never end up in an image by accident.
+*
+!server/
+!src/utils/
+!src/data/
+
+# Installed inside the image instead, and local dev data never ships.
+server/node_modules
+server/data
