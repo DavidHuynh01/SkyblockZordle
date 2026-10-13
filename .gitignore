@@ -24,3 +24,7 @@ DEPLOY.md
 # SAM build output / local deploy config
 .aws-sam/
 samconfig.toml
+
+# Licensed music (Pixabay). Hosted in S3 only; the license forbids
+# redistributing the file unchanged, and this repo is public.
+public/audio/

@@ -150,23 +150,31 @@ img.pixel {
   }
 }
 
-/* Gentle idle animation for the big menu logo: a slow bob plus a shimmer that
-   sweeps the gradient. Scoped away from the small in-game wordmark, and turned
-   off for anyone who prefers reduced motion. */
+/* Gentle idle animation for the big menu logo. The whole panel bobs, so the
+   block and the word move as one; the text adds a shimmer that sweeps the
+   gradient. The rotation rocks around the panel's resting -1deg tilt. Scoped
+   away from the small in-game wordmark, and turned off for anyone who prefers
+   reduced motion. */
 @keyframes logo-bob {
-  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
-  50%      { transform: translateY(-7px) rotate(0.6deg); }
+  0%, 100% { transform: translateY(0) rotate(-1.6deg); }
+  50%      { transform: translateY(-7px) rotate(-0.4deg); }
 }
 @keyframes logo-shimmer {
   0%   { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
 }
+.logo-panel {
+  transform: rotate(-1deg);
+  animation: logo-bob 4.5s ease-in-out infinite;
+  will-change: transform;
+}
 .mc-title:not(.mc-title-sm) {
   background-size: 200% auto;
-  animation: logo-bob 4.5s ease-in-out infinite, logo-shimmer 7s linear infinite;
-  will-change: transform, background-position;
+  animation: logo-shimmer 7s linear infinite;
+  will-change: background-position;
 }
 @media (prefers-reduced-motion: reduce) {
+  .logo-panel,
   .mc-title:not(.mc-title-sm) { animation: none; }
 }
 
@@ -174,4 +182,40 @@ img.pixel {
 .mc-title-sm {
   -webkit-text-stroke-width: 1.5px;
   filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5));
+}
+
+/* Minecraft-style volume slider: a grey inventory-slot track with a square,
+   bevelled stone thumb, matching .mc-slot and .mc-btn. */
+.mc-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 10px;
+  background: #8b8b8b;
+  border: 2px solid #373737;
+  box-shadow: inset 2px 2px 0 0 #373737;
+  cursor: pointer;
+}
+.mc-range:disabled {
+  cursor: not-allowed;
+}
+.mc-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background: #c6c6c6;
+  border: 2px solid #000;
+  box-shadow: inset -2px -2px 0 0 #565656, inset 2px 2px 0 0 #fff;
+}
+.mc-range::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  border-radius: 0;
+  background: #c6c6c6;
+  border: 2px solid #000;
+  box-shadow: inset -2px -2px 0 0 #565656, inset 2px 2px 0 0 #fff;
+}
+.mc-range:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }

@@ -4,7 +4,7 @@ import ItemPicker from "./ItemPicker.jsx";
 import ItemGrid from "./ItemGrid.jsx";
 import ItemIcon from "./ItemIcon.jsx";
 import HowToPlay from "./HowToPlay.jsx";
-import SoundToggle from "./SoundToggle.jsx";
+import SoundControl from "./SoundControl.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import {
   getDailyItem,
@@ -213,7 +213,7 @@ export default function Game({ mode, onBack }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <SoundToggle />
+          <SoundControl placement="below" align="end" />
           {isDaily && (
             <button
               className="mc-slot w-9 h-9 flex items-center justify-center text-paneldark hover:text-black"

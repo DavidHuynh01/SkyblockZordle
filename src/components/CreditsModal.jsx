@@ -34,6 +34,19 @@ export default function CreditsModal({ onClose }) {
             , used under its license. © Hypixel Inc.
           </p>
 
+          <p>
+            Music: &ldquo;Ambient Piano&rdquo; by{" "}
+            <a
+              className="text-[#2b5fb0] underline"
+              href="https://pixabay.com/music/ambient-ambient-piano-595681/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              leberch
+            </a>{" "}
+            via Pixabay.
+          </p>
+
           <p>Built with React, Vite &amp; Tailwind CSS.</p>
 
           <p className="opacity-70">

@@ -52,16 +52,6 @@ scores and sessions, and the site itself served from a private S3 bucket through
 CloudFront. The whole stack is defined in [`infra/template.yaml`](infra/template.yaml),
 so it deploys from a single command.
 
-### A couple of design notes
-
-**The answer never reaches your browser.** Guesses are checked on the server, so
-the daily item isn't sitting in the page for anyone to read.
-
-**Scores can't be faked.** The server counts your guesses itself and writes the
-leaderboard entry when it sees the winning guess — the browser never reports a
-score. Ranking requires signing in with Discord (OAuth2 handled in Lambda,
-sessions as signed tokens), so a leaderboard entry is tied to a real account.
-
 ---
 
 Item art is from the official Hypixel SkyBlock Resource Pack (© Hypixel Inc.),

@@ -1,35 +1,14 @@
 // Tiny synthesized UI sounds (Web Audio). No audio files: nothing to download,
-// nothing to license. Muted by default-safe: browsers block audio until the
-// user interacts, and the AudioContext is only created on first play.
-const KEY = "skyblockzordle-muted";
+// nothing to license. Browsers block audio until the user interacts, and the
+// AudioContext is only created on first play. Loudness follows the "Effects"
+// slider and the master mute in sound.js.
+import { getSound, toGain } from "./sound.js";
 
 let ctx = null;
-const listeners = new Set();
-
-export function isMuted() {
-  try {
-    return localStorage.getItem(KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function setMuted(muted) {
-  try {
-    localStorage.setItem(KEY, muted ? "1" : "0");
-  } catch {
-    /* ignore */
-  }
-  listeners.forEach((fn) => fn(muted));
-}
-
-export function onMuteChange(fn) {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
 
 function audio() {
-  if (isMuted()) return null;
+  const { muted, sfx } = getSound();
+  if (muted || sfx === 0) return null;
   try {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
@@ -46,6 +25,8 @@ function audio() {
 function blip({ freq, dur = 0.09, type = "square", gain = 0.05, at = 0, slideTo }) {
   const a = audio();
   if (!a) return;
+  // exponential ramps can't reach 0, so a near-silent slider floors at 0.0002
+  const peak = Math.max(0.0002, gain * toGain(getSound().sfx));
   const t0 = a.currentTime + at;
   const osc = a.createOscillator();
   const vol = a.createGain();
@@ -54,7 +35,7 @@ function blip({ freq, dur = 0.09, type = "square", gain = 0.05, at = 0, slideTo 
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
   // quick attack, smooth decay — avoids the click of an abrupt stop
   vol.gain.setValueAtTime(0.0001, t0);
-  vol.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+  vol.gain.exponentialRampToValueAtTime(peak, t0 + 0.01);
   vol.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   osc.connect(vol).connect(a.destination);
   osc.start(t0);

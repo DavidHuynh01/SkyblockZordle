@@ -1,9 +1,11 @@
 import { useState } from "react";
 import CreditsModal from "./CreditsModal.jsx";
 import Leaderboard from "./Leaderboard.jsx";
+import ChangelogModal, { hasUnseenUpdate, markUpdatesSeen } from "./ChangelogModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import SoundToggle from "./SoundToggle.jsx";
+import SoundControl from "./SoundControl.jsx";
 import { sfx } from "../utils/sfx.js";
+import { CURRENT_VERSION } from "../data/changelog.js";
 
 const GITHUB_URL = "https://github.com/DavidHuynh01";
 const DISCORD_URL = "https://discord.gg/skyblock";
@@ -57,6 +59,8 @@ function AccountBar() {
 export default function Menu({ onNavigate }) {
   const [showCredits, setShowCredits] = useState(false);
   const [showLb, setShowLb] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
+  const [unseen, setUnseen] = useState(hasUnseenUpdate);
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center px-4">
       <div className="absolute top-4 right-4">
@@ -64,8 +68,8 @@ export default function Menu({ onNavigate }) {
       </div>
 
       {/* Logo */}
-      <div className="mc-panel px-6 sm:px-10 py-6 mb-12 -rotate-1 max-w-[92vw]">
-        <h1 className="mc-title text-2xl sm:text-5xl text-center break-words">
+      <div className="mc-panel logo-panel px-5 sm:px-10 py-6 mb-12 max-w-[92vw]">
+        <h1 className="mc-title text-xl sm:text-5xl text-center break-words">
           SkyblockZordle
         </h1>
       </div>
@@ -95,7 +99,7 @@ export default function Menu({ onNavigate }) {
 
         {/* Icon row: GitHub · Discord · Credits */}
         <div className="flex justify-center gap-3 mt-1 items-center">
-          <SoundToggle className="w-14 h-14" />
+          <SoundControl className="w-14 h-14 text-xl" placement="above" align="start" />
           <a
             href={GITHUB_URL}
             target="_blank"
@@ -129,11 +133,29 @@ export default function Menu({ onNavigate }) {
 
       {showCredits && <CreditsModal onClose={() => setShowCredits(false)} />}
       {showLb && <Leaderboard onClose={() => setShowLb(false)} />}
+      {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
 
       <p className="text-white text-[9px] text-shadow-mc mt-12 opacity-80 text-center max-w-md leading-relaxed">
         Guess the daily Hypixel Skyblock item. Each guess reveals how close you
         are — ▲ / ▼ mean the answer is higher / lower.
       </p>
+
+      <button
+        className="mt-4 text-white text-[9px] text-shadow-mc opacity-80 hover:opacity-100 hover:underline underline-offset-4"
+        onClick={() => {
+          sfx.click();
+          markUpdatesSeen();
+          setUnseen(false);
+          setShowChangelog(true);
+        }}
+      >
+        v{CURRENT_VERSION} · What's new
+        {unseen && (
+          <span className="ml-2 px-1 py-0.5 text-[7px] text-white bg-[#d33] align-middle no-underline">
+            NEW
+          </span>
+        )}
+      </button>
     </div>
   );
 }
