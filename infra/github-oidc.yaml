@@ -39,7 +39,10 @@ Resources:
   DeployRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${StackName}-github-deploy"
+      # Must NOT start with ${StackName}: the IAM statement below grants
+      # role management on `role/${StackName}*`, and a name inside that
+      # pattern would let this role grant itself any permission.
+      RoleName: !Sub "github-deploy-${StackName}"
       Description: Assumed by GitHub Actions to deploy the application stack
       MaxSessionDuration: 3600
       AssumeRolePolicyDocument:
