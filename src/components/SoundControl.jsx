@@ -30,7 +30,10 @@ export default function SoundControl({ className = "w-9 h-9", placement = "below
   const silent = s.muted || (s.music === 0 && s.sfx === 0);
   const pos = [
     placement === "above" ? "bottom-full mb-2" : "top-full mt-2",
-    align === "start" ? "left-0" : "right-0",
+    // "start-mobile": open rightwards on phones, where the button sits in a
+    // centered row, and leftwards from sm up, where it sits near the right edge.
+    { start: "left-0", end: "right-0", "start-mobile": "left-0 sm:left-auto sm:right-0" }[align] ||
+      "right-0",
   ].join(" ");
 
   return (

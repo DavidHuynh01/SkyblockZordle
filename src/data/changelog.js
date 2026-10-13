@@ -7,6 +7,18 @@
 
 export const CHANGELOG = [
   {
+    version: "1.1",
+    date: "2026-10-12",
+    title: "Damage and Strength",
+    changes: [
+      "New Damage and Strength columns, using Hypixel's own item stats, both with higher/lower arrows",
+      "NPC Sell is gone: it was blank for most items",
+      "No more coin flips between identical items: at most two items now match on every column, and ruling one out tells you the other",
+      "On phones, the game's buttons no longer fall off the edge of the screen",
+      "On small screens the guess table scrolls sideways instead of cutting words off",
+    ],
+  },
+  {
     version: "1.0",
     date: "2026-10-12",
     title: "Launch",

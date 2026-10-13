@@ -32,14 +32,16 @@ export default function HowToPlay({ onClose }) {
           <p>
             <span className="text-[#2e7d32]">▲</span> /{" "}
             <span className="text-[#b23b3b]">▼</span> on{" "}
-            <b>Rarity</b> and <b>NPC Sell</b> mean the answer is higher / lower.
+            <b>Rarity</b>, <b>Damage</b> and <b>Strength</b> mean the answer is
+            higher / lower.
           </p>
 
           <p className="pt-1">Attributes compared:</p>
           <ul className="list-disc list-inside space-y-1 opacity-90">
             <li>Rarity (Common → Special)</li>
             <li>Category (Sword, Bow, Wand, Pickaxe…)</li>
-            <li>NPC Sell price</li>
+            <li>Damage</li>
+            <li>Strength</li>
             <li>Source (Crafting, Dungeon, Slayer…)</li>
             <li>Location (The End, Dungeons, Crystal Hollows…)</li>
             <li>Tradeable (Yes / No)</li>

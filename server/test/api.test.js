@@ -187,3 +187,10 @@ test("the leaderboard route serves the streak board", async () => {
   assert.equal(res.body.streaks[0].maxStreak, 1);
   assert.equal(res.body.streaks[0].userId, undefined, "user ids must not leave the server");
 });
+
+test("a guess still carries npcSell so tabs opened before v1.1 don't crash", async () => {
+  const { api } = setup();
+  const res = await call(api, { method: "POST", path: "/api/guess", body: { itemId: wrongItem() } });
+  assert.deepEqual(res.body.result.npcSell, { status: "wrong", hint: null });
+  assert.ok(res.body.result.damage && res.body.result.strength, "and the new columns are there too");
+});

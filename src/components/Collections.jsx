@@ -35,7 +35,7 @@ export default function Collections({ onBack }) {
         <table className="w-full border-collapse text-[9px]">
           <thead>
             <tr className="text-left">
-              {["", "Name", "Rarity", "Category", "NPC Sell", "Source", "Location", "Trade"].map(
+              {["", "Name", "Rarity", "Category", "Damage", "Strength", "Source", "Location", "Trade"].map(
                 (h) => (
                   <th key={h} className="px-2 py-2 text-paneldark">
                     {h}
@@ -57,9 +57,8 @@ export default function Collections({ onBack }) {
                   {item.rarity}
                 </td>
                 <td className="px-2 py-1">{item.category}</td>
-                <td className="px-2 py-1">
-                  {item.npcSell > 0 ? `${item.npcSell.toLocaleString()}g` : "—"}
-                </td>
+                <td className="px-2 py-1">{item.damage}</td>
+                <td className="px-2 py-1">{item.strength}</td>
                 <td className="px-2 py-1">{item.source}</td>
                 <td className="px-2 py-1">{item.location}</td>
                 <td className="px-2 py-1">{item.tradeable ? "Yes" : "No"}</td>

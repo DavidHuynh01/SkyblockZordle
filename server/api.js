@@ -118,7 +118,11 @@ export function createApi(store, config = {}, deps = {}) {
       }
 
       return reply(200, {
-        result: compareGuess(guess, answer),
+        // npcSell: TEMPORARY, remove after 2026-10-19. v1.1 dropped the NPC Sell
+        // column, but a tab opened before that deploy still runs the old page,
+        // which reads result.npcSell unguarded and would crash on its next
+        // guess. A neutral placeholder keeps those tabs alive until reloaded.
+        result: { ...compareGuess(guess, answer), npcSell: { status: "wrong", hint: null } },
         correct,
         answer: correct ? answer : undefined,
         ...(recorded ? { serverGuesses: recorded.guesses } : {}),

@@ -198,12 +198,13 @@ export default function Game({ mode, onBack }) {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center px-4 py-6">
-      {/* Top bar */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-4 gap-2">
+      {/* Top bar. On phones the buttons drop to their own row: the wordmark
+          alone takes most of a 375px screen, which pushed them off the edge. */}
+      <div className="w-full max-w-4xl flex flex-wrap items-center justify-between mb-4 gap-2">
         <button className="mc-btn text-[10px]" onClick={onBack}>
           ← Menu
         </button>
-        <div className="text-center">
+        <div className="flex-1 sm:flex-none text-center">
           <div className="mc-title mc-title-sm text-base sm:text-2xl leading-none">
             SkyblockZordle
           </div>
@@ -212,8 +213,8 @@ export default function Game({ mode, onBack }) {
             {offline && <span className="opacity-60"> · offline</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SoundControl placement="below" align="end" />
+        <div className="flex items-center gap-2 w-full justify-center sm:w-auto sm:justify-end">
+          <SoundControl placement="below" align="start-mobile" />
           {isDaily && (
             <button
               className="mc-slot w-9 h-9 flex items-center justify-center text-paneldark hover:text-black"

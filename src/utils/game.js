@@ -77,7 +77,8 @@ export function compareGuess(guess, target) {
   return {
     rarity: numericResult(rarityIndex(guess.rarity), rarityIndex(target.rarity)),
     category: matchResult(guess.category, target.category),
-    npcSell: numericResult(guess.npcSell, target.npcSell),
+    damage: numericResult(guess.damage, target.damage),
+    strength: numericResult(guess.strength, target.strength),
     source: matchResult(guess.source, target.source),
     location: matchResult(guess.location, target.location),
     tradeable: matchResult(guess.tradeable, target.tradeable),
@@ -96,15 +97,23 @@ const SITE_URL =
   import.meta.env?.VITE_SITE_URL || "https://github.com/DavidHuynh01/skyblockzordle";
 
 // Wordle-style spoiler-free emoji grid for sharing a daily result.
-const ATTR_ORDER = ["rarity", "category", "npcSell", "source", "location", "tradeable"];
+export const ATTR_ORDER = [
+  "rarity",
+  "category",
+  "damage",
+  "strength",
+  "source",
+  "location",
+  "tradeable",
+];
 
 // `guesses` is [{ item, result }] — the result is already computed, so this
-// works without the client knowing the answer.
+// works without the client knowing the answer. A column missing from a saved
+// result (a game started before that column existed) shows as ⬛.
 export function buildShareText(guesses, puzzleNumber, won) {
   const score = won ? guesses.length : "X";
   const header = `SkyblockZordle #${puzzleNumber} ${score}/8`;
-  const rows = guesses.map(({ result: r }) =>
-    ATTR_ORDER.map((k) => (r[k].status === "correct" ? "🟩" : "🟥")).join("")
-  );
+  const cell = (res) => (!res ? "⬛" : res.status === "correct" ? "🟩" : "🟥");
+  const rows = guesses.map(({ result: r }) => ATTR_ORDER.map((k) => cell(r[k])).join(""));
   return [header, ...rows, SITE_URL].join("\n");
 }

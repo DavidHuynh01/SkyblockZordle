@@ -12,12 +12,13 @@ Each guess is scored against the answer attribute by attribute:
 
 - 🟩 **Green** — that attribute matches the answer
 - 🟥 **Red** — it doesn't match
-- ▲ / ▼ — the answer's **Rarity** or **NPC Sell price** is higher / lower
+- ▲ / ▼ — the answer's **Rarity**, **Damage** or **Strength** is higher / lower
 
 So guessing *Hyperion* might tell you the answer is also **Legendary**, also
-crafted, but sells for **less** and isn't from Dungeons — and you narrow it down
-from there. The six attributes compared are **Rarity, Category, NPC Sell price,
-Source, Location,** and **Tradeable**.
+crafted, but hits **harder** and isn't from Dungeons — and you narrow it down
+from there. The seven attributes compared are **Rarity, Category, Damage,
+Strength, Source, Location,** and **Tradeable**. Damage and Strength come from
+Hypixel's own item data.
 
 Everyone in the world gets the same item each day, so you can compare results
 with friends.
