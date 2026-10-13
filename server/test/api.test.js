@@ -8,6 +8,7 @@ import { createFakeClient } from "./fake-dynamo.js";
 
 const CONFIG = {
   sessionSecret: "s3cret",
+  dailySecret: "d4ily",
   discordClientId: "client-id",
   discordClientSecret: "client-secret",
   redirectUri: "https://api.example.com/api/auth/callback",
@@ -15,7 +16,8 @@ const CONFIG = {
 };
 const USER = { id: "u1", username: "Steve", avatar: null };
 const today = () => utcDateKey();
-const wrongItem = () => (answerFor(today()).id === "hyperion" ? "terminator" : "hyperion");
+const answerToday = () => answerFor(today(), CONFIG.dailySecret);
+const wrongItem = () => (answerToday().id === "hyperion" ? "terminator" : "hyperion");
 
 function setup({ fetchImpl } = {}) {
   const store = createDynamoStore({ client: createFakeClient(), tableName: "t" });
@@ -52,7 +54,7 @@ test("an anonymous solve does not reach the leaderboard", async () => {
   const { api, store } = setup();
   const res = await call(api, {
     method: "POST", path: "/api/guess",
-    body: { itemId: answerFor(today()).id },
+    body: { itemId: answerToday().id },
   });
   assert.equal(res.body.correct, true);
   assert.equal((await store.leaderboard(today())).length, 0, "login is required to be ranked");
@@ -66,7 +68,7 @@ test("a signed-in solve is recorded with the server's own guess count", async ()
   }
   const res = await call(api, {
     method: "POST", path: "/api/guess",
-    body: { itemId: answerFor(today()).id, guesses: 1 }, // client lies about the count
+    body: { itemId: answerToday().id, guesses: 1 }, // client lies about the count
     headers: auth(),
   });
   assert.equal(res.body.correct, true);
@@ -79,14 +81,14 @@ test("a signed-in solve is recorded with the server's own guess count", async ()
 test("a forged session token cannot score", async () => {
   const { api, store } = setup();
   const forged = { authorization: `Bearer ${createSessionToken(USER, "wrong-secret")}` };
-  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerFor(today()).id }, headers: forged });
+  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: forged });
   assert.equal((await store.leaderboard(today())).length, 0);
 });
 
 test("solving twice does not overwrite the first result", async () => {
   const { api, store } = setup();
-  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerFor(today()).id }, headers: auth() });
-  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerFor(today()).id }, headers: auth() });
+  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: auth() });
+  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: auth() });
   const lb = await store.leaderboard(today());
   assert.equal(lb.length, 1);
   assert.equal(lb[0].guesses, 1, "the original solve stands");
@@ -97,7 +99,7 @@ test("burning all 8 guesses then guessing right earns no score", async () => {
   for (let i = 0; i < 8; i++) {
     await call(api, { method: "POST", path: "/api/guess", body: { itemId: wrongItem() }, headers: auth() });
   }
-  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerFor(today()).id }, headers: auth() });
+  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: auth() });
   assert.equal((await store.leaderboard(today())).length, 0, "brute forcing past 8 guesses must not rank");
 });
 
@@ -155,7 +157,7 @@ test("a signed-in solve earns a streak and lands on the streak board", async () 
   const { api, store } = setup();
   const res = await call(api, {
     method: "POST", path: "/api/guess",
-    headers: auth(), body: { itemId: answerFor(today()).id },
+    headers: auth(), body: { itemId: answerToday().id },
   });
   assert.equal(res.body.streak, 1);
   assert.equal(res.body.maxStreak, 1);
@@ -168,7 +170,7 @@ test("an anonymous solve does not reach the streak board", async () => {
   const { api, store } = setup();
   const res = await call(api, {
     method: "POST", path: "/api/guess",
-    body: { itemId: answerFor(today()).id, anonId: "abc" },
+    body: { itemId: answerToday().id, anonId: "abc" },
   });
   assert.equal(res.body.correct, true);
   assert.equal(res.body.streak, undefined, "no streak is reported to anonymous players");
@@ -179,7 +181,7 @@ test("the leaderboard route serves the streak board", async () => {
   const { api } = setup();
   await call(api, {
     method: "POST", path: "/api/guess",
-    headers: auth(), body: { itemId: answerFor(today()).id },
+    headers: auth(), body: { itemId: answerToday().id },
   });
   const res = await call(api, { method: "GET", path: "/api/leaderboard" });
   assert.equal(res.status, 200);
@@ -193,4 +195,43 @@ test("a guess still carries npcSell so tabs opened before v1.1 don't crash", asy
   const res = await call(api, { method: "POST", path: "/api/guess", body: { itemId: wrongItem() } });
   assert.deepEqual(res.body.result.npcSell, { status: "wrong", hint: null });
   assert.ok(res.body.result.damage && res.body.result.strength, "and the new columns are there too");
+});
+
+const tomorrow = () => utcDateKey(new Date(Date.now() + 86400000));
+
+test("the daily answer is keyed by the server secret", () => {
+  const days = Array.from({ length: 30 }, (_, i) => `2026-11-${String(i + 1).padStart(2, "0")}`);
+  const pick = (secret) => days.map((d) => answerFor(d, secret).id);
+  assert.deepEqual(pick("a"), pick("a"), "same secret, same answers");
+  assert.notDeepEqual(pick("a"), pick("b"), "the code alone must not give the answers");
+});
+
+test("the api answers with its own secret", async () => {
+  const store = createDynamoStore({ client: createFakeClient(), tableName: "t" });
+  const other = createApi(store, { ...CONFIG, dailySecret: "another" });
+  const res = await call(other, { method: "GET", path: "/api/reveal" });
+  assert.equal(res.body.answer.id, answerFor(today(), "another").id);
+});
+
+test("future days can't be revealed or guessed", async () => {
+  const { api } = setup();
+  const reveal = await call(api, { method: "GET", path: "/api/reveal", query: { date: tomorrow() } });
+  assert.equal(reveal.status, 400);
+  assert.equal(reveal.body.answer, undefined);
+  const guess = await call(api, {
+    method: "POST", path: "/api/guess", body: { date: tomorrow(), itemId: answerFor(tomorrow(), CONFIG.dailySecret).id },
+  });
+  assert.equal(guess.status, 400);
+  assert.equal(guess.body.correct, undefined);
+  // A game started just before UTC midnight still finishes on its own day.
+  const yesterday = utcDateKey(new Date(Date.now() - 86400000));
+  assert.equal((await call(api, { method: "GET", path: "/api/reveal", query: { date: yesterday } })).status, 200);
+});
+
+test("junk dates are refused", async () => {
+  const { api } = setup();
+  for (const date of ["9999", "tomorrow", ["2026-01-01"]]) {
+    const res = await call(api, { method: "GET", path: "/api/reveal", query: { date } });
+    assert.equal(res.status, 400, `accepted ${JSON.stringify(date)}`);
+  }
 });

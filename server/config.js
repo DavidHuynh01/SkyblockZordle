@@ -5,13 +5,19 @@ let cached = null;
 async function fromSsm(prefix) {
   const { SSMClient, GetParametersCommand } = await import("@aws-sdk/client-ssm");
   const ssm = new SSMClient({});
-  const names = [`${prefix}/discord_client_id`, `${prefix}/discord_client_secret`, `${prefix}/session_secret`];
+  const names = [
+    `${prefix}/discord_client_id`,
+    `${prefix}/discord_client_secret`,
+    `${prefix}/session_secret`,
+    `${prefix}/daily_secret`,
+  ];
   const res = await ssm.send(new GetParametersCommand({ Names: names, WithDecryption: true }));
   const get = (n) => res.Parameters?.find((p) => p.Name === n)?.Value;
   return {
     discordClientId: get(names[0]),
     discordClientSecret: get(names[1]),
     sessionSecret: get(names[2]),
+    dailySecret: get(names[3]),
   };
 }
 
@@ -20,6 +26,7 @@ export async function loadConfig() {
   const base = {
     siteUrl: (process.env.SITE_URL || "http://localhost:5173").replace(/\/$/, ""),
     redirectUri: process.env.REDIRECT_URI || "http://localhost:3001/api/auth/callback",
+    dailySecret: process.env.DAILY_SECRET,
   };
 
   // Local dev / tests: plain env vars win.
@@ -36,6 +43,11 @@ export async function loadConfig() {
   if (process.env.SSM_PREFIX) {
     try {
       cached = { ...base, ...(await fromSsm(process.env.SSM_PREFIX)) };
+      if (!cached.dailySecret) {
+        // The game keeps running, but on the public dev key: anyone can
+        // compute the daily answer from the source until this is fixed.
+        console.error(`no ${process.env.SSM_PREFIX}/daily_secret in SSM: daily answers are predictable`);
+      }
       return cached;
     } catch (err) {
       console.error("could not load secrets from SSM:", err.message);

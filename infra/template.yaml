@@ -10,7 +10,7 @@ Parameters:
   SsmPrefix:
     Type: String
     Default: /skyblockzordle
-    Description: SSM Parameter Store prefix holding the Discord + session secrets
+    Description: SSM Parameter Store prefix holding the Discord, session and daily secrets
   ApiBaseUrl:
     Type: String
     Default: ""

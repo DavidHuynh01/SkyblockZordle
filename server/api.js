@@ -9,8 +9,13 @@ const MAX_GUESSES = 8;
 const reply = (status, body, headers) => ({ status, body, headers });
 const redirect = (location) => ({ status: 302, body: null, headers: { location } });
 
+// Only days that have started can be guessed or revealed, or tomorrow's answer
+// would be one request away.
+const playableDay = (day) =>
+  typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) && day <= utcDateKey();
+
 /**
- * config: { sessionSecret, discordClientId, discordClientSecret, redirectUri, siteUrl }
+ * config: { sessionSecret, dailySecret, discordClientId, discordClientSecret, redirectUri, siteUrl }
  * Auth routes are only enabled when the Discord credentials are present, so the
  * game still runs (anonymously) without them.
  */
@@ -19,6 +24,7 @@ export function createApi(store, config = {}, deps = {}) {
   const authEnabled = Boolean(config.discordClientId && config.discordClientSecret && config.sessionSecret);
   const userFrom = (headers) =>
     authEnabled ? verifySessionToken(bearerFrom(headers), config.sessionSecret) : null;
+  const answerOn = (day) => answerFor(day, config.dailySecret);
 
   return {
     authEnabled,
@@ -76,10 +82,11 @@ export function createApi(store, config = {}, deps = {}) {
     // recorded straight to the leaderboard — the client never reports a score.
     guess: async (body = {}, headers = {}) => {
       const day = body.date || utcDateKey();
+      if (!playableDay(day)) return reply(400, { error: "bad date" });
       const guess = itemById(body.itemId);
       if (!guess) return reply(400, { error: "unknown item" });
 
-      const answer = answerFor(day);
+      const answer = answerOn(day);
       const correct = guess.id === answer.id;
       const user = userFrom(headers);
       let streak = null;
@@ -130,7 +137,11 @@ export function createApi(store, config = {}, deps = {}) {
       });
     },
 
-    reveal: async ({ date } = {}) => reply(200, { answer: answerFor(date || utcDateKey()) }),
+    reveal: async ({ date } = {}) => {
+      const day = date || utcDateKey();
+      if (!playableDay(day)) return reply(400, { error: "bad date" });
+      return reply(200, { answer: answerOn(day) });
+    },
 
     leaderboard: async ({ date } = {}) => {
       const day = date || utcDateKey();

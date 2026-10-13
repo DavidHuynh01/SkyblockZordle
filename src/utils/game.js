@@ -1,27 +1,10 @@
 import { ITEMS, RARITY_ORDER } from "../data/items.js";
 
 // ---------------------------------------------------------------------------
-// Daily puzzle selection
+// Daily puzzle
 // ---------------------------------------------------------------------------
-// Everyone who plays on the same calendar day gets the same target item,
-// without any backend. We hash the YYYY-MM-DD string into an index.
-
-export function getDateKey(date = new Date()) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-// Simple deterministic string hash (FNV-1a style).
-function hashString(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+// The daily item is picked on the server with a secret key (server/logic.js),
+// so it can't be worked out from this code. The client only numbers the days.
 
 // The puzzle "epoch" — day 0. Used so the puzzle number increments daily.
 const EPOCH = new Date(2024, 0, 1);
@@ -29,16 +12,6 @@ const EPOCH = new Date(2024, 0, 1);
 export function getPuzzleNumber(date = new Date()) {
   const ms = new Date(date.getFullYear(), date.getMonth(), date.getDate()) - EPOCH;
   return Math.floor(ms / 86400000) + 1;
-}
-
-// Deterministic item for a given date-key string (shared by client fallback
-// and the server, so both pick the same daily item).
-export function getItemForDateKey(dateKey) {
-  return ITEMS[hashString(dateKey) % ITEMS.length];
-}
-
-export function getDailyItem(date = new Date()) {
-  return getItemForDateKey(getDateKey(date));
 }
 
 export function getItemById(id) {

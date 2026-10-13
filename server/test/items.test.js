@@ -3,7 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ITEMS } from "../../src/data/items.js";
-import { compareGuess, getItemForDateKey, buildShareText } from "../../src/utils/game.js";
+import { compareGuess, buildShareText } from "../../src/utils/game.js";
+import { answerFor } from "../logic.js";
 
 const COMPARED = ["rarity", "category", "damage", "strength", "source", "location", "tradeable"];
 const byId = (id) => ITEMS.find((i) => i.id === id);
@@ -33,23 +34,24 @@ test("no three items look identical", () => {
 });
 
 test("item edits do not reshuffle the daily answers", () => {
-  // The daily pick is by position in ITEMS. Adding, removing or reordering
-  // items changes every answer, including today's for anyone mid-game. If
-  // that is intended, ship it right after UTC midnight and update this list.
+  // The daily pick is by position in ITEMS (keyed by a secret in production,
+  // a fixed test key here). Adding, removing or reordering items changes every
+  // answer, including today's for anyone mid-game. If that is intended, ship it
+  // right after UTC midnight and update this list.
   const pinned = {
-    "2026-09-01": "hurricane_bow",
-    "2026-09-02": "last_breath",
-    "2026-09-03": "rod_of_legends",
-    "2026-09-04": "livid_dagger",
-    "2026-09-05": "atomsplit_katana",
-    "2026-09-06": "revenant_falchion",
-    "2026-09-07": "midas_staff",
-    "2026-09-08": "rod_of_the_sea",
-    "2026-09-09": "midas_sword",
-    "2026-09-10": "daedalus_axe",
+    "2026-09-01": "mosquito_bow",
+    "2026-09-02": "scylla",
+    "2026-09-03": "hyperion",
+    "2026-09-04": "jerry_chine_gun",
+    "2026-09-05": "fel_sword",
+    "2026-09-06": "zombie_soldier_cutlass",
+    "2026-09-07": "sword_of_bad_health",
+    "2026-09-08": "zombie_sword",
+    "2026-09-09": "flower_of_truth",
+    "2026-09-10": "magma_rod",
   };
   for (const [day, id] of Object.entries(pinned)) {
-    assert.equal(getItemForDateKey(day).id, id, `the answer for ${day} moved`);
+    assert.equal(answerFor(day, "pinned-test-secret").id, id, `the answer for ${day} moved`);
   }
 });
 

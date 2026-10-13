@@ -7,10 +7,8 @@ import HowToPlay from "./HowToPlay.jsx";
 import SoundControl from "./SoundControl.jsx";
 import Leaderboard from "./Leaderboard.jsx";
 import {
-  getDailyItem,
   getRandomItem,
   getPuzzleNumber,
-  getDateKey,
   isWin,
   compareGuess,
   buildShareText,
@@ -30,6 +28,8 @@ export default function Game({ mode, onBack }) {
   const [date, setDate] = useState(isDaily ? null : "unlimited");
   const [puzzleNum, setPuzzleNum] = useState(null);
   const [offline, setOffline] = useState(false);
+  const [retry, setRetry] = useState(0); // bump to ask the server again
+  const [guessFailed, setGuessFailed] = useState(false);
 
   const [guesses, setGuesses] = useState([]); // [{ item, result }]
   const [status, setStatus] = useState("playing"); // playing | won | lost
@@ -45,8 +45,8 @@ export default function Game({ mode, onBack }) {
   const [serverStreak, setServerStreak] = useState(null);
   const startRef = useRef(null);
 
-  // ---- Daily setup: fetch puzzle meta from the server (falls back to a local
-  // computation if the API is unreachable so the game still works offline). ----
+  // ---- Daily setup: fetch puzzle meta from the server. Only the server knows
+  // the answer (it's picked with a secret), so the daily can't run offline. ----
   useEffect(() => {
     if (!isDaily) return;
     let active = true;
@@ -65,6 +65,7 @@ export default function Game({ mode, onBack }) {
       }
     }
 
+    setOffline(false);
     api
       .daily()
       .then((d) => {
@@ -74,20 +75,13 @@ export default function Game({ mode, onBack }) {
         hydrate(d.date);
       })
       .catch(() => {
-        if (!active) return;
-        // Offline fallback: compute the daily locally.
-        const dk = getDateKey();
-        setOffline(true);
-        setTarget(getDailyItem());
-        setDate(dk);
-        setPuzzleNum(getPuzzleNumber());
-        hydrate(dk);
+        if (active) setOffline(true);
       });
 
     return () => {
       active = false;
     };
-  }, [isDaily]);
+  }, [isDaily, retry]);
 
   // Persist daily progress.
   useEffect(() => {
@@ -115,8 +109,8 @@ export default function Game({ mode, onBack }) {
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function revealAnswer() {
-    if (isDaily && !offline && date) {
-      api.reveal(date).then((d) => setAnswer(d.answer)).catch(() => target && setAnswer(target));
+    if (isDaily) {
+      api.reveal(date).then((d) => setAnswer(d.answer)).catch(() => {});
     } else {
       setAnswer(target);
     }
@@ -129,20 +123,18 @@ export default function Game({ mode, onBack }) {
 
     let result;
     let correct;
-    if (isDaily && !offline) {
+    if (isDaily) {
       try {
         const r = await api.guess(date, item.id);
         result = r.result;
         correct = r.correct;
         if (r.answer) setAnswer(r.answer);
         if (r.streak) setServerStreak({ streak: r.streak, maxStreak: r.maxStreak });
+        setGuessFailed(false);
       } catch {
-        // API died mid-game — switch to local checking.
-        const t = getDailyItem();
-        setTarget(t);
-        setOffline(true);
-        result = compareGuess(item, t);
-        correct = isWin(item, t);
+        // API died mid-game. The guess doesn't count; the player can retry it.
+        setGuessFailed(true);
+        return;
       }
     } else {
       const t = target;
@@ -233,7 +225,7 @@ export default function Game({ mode, onBack }) {
           >
             ?
           </button>
-          {!over && (
+          {!over && !offline && (
             <button
               className="mc-slot w-9 h-9 flex items-center justify-center text-[#b23b3b] hover:brightness-110"
               title="Give up"
@@ -322,20 +314,45 @@ export default function Game({ mode, onBack }) {
         </div>
       )}
 
-      {/* Picker */}
-      <div className="w-full max-w-4xl mb-3">
-        <ItemPicker onGuess={handleGuess} guessedIds={guessedIds} disabled={over} />
-      </div>
+      {offline ? (
+        <div className="w-full max-w-md mc-panel p-5 flex flex-col items-center gap-3 text-center animate-pop">
+          <p className="text-[11px] text-paneldark">Can't reach the server</p>
+          <p className="text-[9px] text-paneldark opacity-70">
+            The daily puzzle is checked on the server, so it needs a connection. Unlimited
+            mode works offline.
+          </p>
+          <div className="flex gap-2">
+            <button className="mc-btn text-[10px]" onClick={() => setRetry((n) => n + 1)}>
+              Try again
+            </button>
+            <button className="mc-btn text-[10px]" onClick={onBack}>
+              Menu
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Picker */}
+          <div className="w-full max-w-4xl mb-3">
+            <ItemPicker onGuess={handleGuess} guessedIds={guessedIds} disabled={over} />
+            {guessFailed && (
+              <p className="text-[9px] text-[#b23b3b] text-shadow-mc text-center mt-2">
+                Couldn't reach the server. That guess didn't count, try it again.
+              </p>
+            )}
+          </div>
 
-      {/* Clickable item grid */}
-      <div className="w-full max-w-4xl mb-5">
-        <ItemGrid onGuess={handleGuess} guessedIds={guessedIds} disabled={over} />
-      </div>
+          {/* Clickable item grid */}
+          <div className="w-full max-w-4xl mb-5">
+            <ItemGrid onGuess={handleGuess} guessedIds={guessedIds} disabled={over} />
+          </div>
 
-      {/* Guesses */}
-      <div className="w-full max-w-4xl">
-        <GuessGrid guesses={guesses} />
-      </div>
+          {/* Guesses */}
+          <div className="w-full max-w-4xl">
+            <GuessGrid guesses={guesses} />
+          </div>
+        </>
+      )}
 
       {confirmGiveUp && (
         <div
