@@ -1,6 +1,6 @@
 # SkyblockZordle
 
-### ▶ Play it: **[skyblockzordle](https://d3htnxjhk2w7e2.cloudfront.net)**
+### ▶ Play it: **[skyblockzordle.com](https://skyblockzordle.com)**
 
 A daily guessing game for **Hypixel Skyblock** items — like Wordle, but instead
 of five-letter words you're guessing swords, wands, bows, and tools.
