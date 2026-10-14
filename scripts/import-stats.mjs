@@ -1,5 +1,5 @@
-// Pulls each item's Damage and Strength from Hypixel's public item API into
-// src/data/item-stats.js, matching the ids in src/data/items.js.
+// Pulls each item's Damage, Strength and rarity from Hypixel's public item API
+// into src/data/item-stats.js, matching the ids in src/data/items.js.
 //
 // Usage:
 //   node scripts/import-stats.mjs            (dry run — prints what it found)
@@ -48,6 +48,25 @@ const ALIASES = {
   wither_cloak_sword: "WITHER_CLOAK",
 };
 
+// Hypixel's rarity names -> the game's. Hypixel leaves `tier` out for Common.
+const RARITY = {
+  COMMON: "Common",
+  UNCOMMON: "Uncommon",
+  RARE: "Rare",
+  EPIC: "Epic",
+  LEGENDARY: "Legendary",
+  MYTHIC: "Mythic",
+  DIVINE: "Divine",
+  SPECIAL: "Special",
+};
+
+// Stats Hypixel's data can't express, set by hand from the in-game item.
+const OVERRIDES = {
+  // Damage grows with Taming level: 4 per level, up to 240 at Taming 60. The
+  // maximum matches how every other scaling item is counted.
+  daedalus_axe: { damage: 240 },
+};
+
 // A stat's value: flat, or the top tier for dungeon items that scale.
 function stat(item, key) {
   if (item.stats?.[key] !== undefined) return item.stats[key];
@@ -85,14 +104,19 @@ for (const it of BASE_ITEMS) {
     missing.push(it.name);
     continue;
   }
-  stats[it.id] = { damage: stat(h, "DAMAGE"), strength: stat(h, "STRENGTH") };
+  const rarity = RARITY[h.tier ?? "COMMON"];
+  if (!rarity) {
+    missing.push(`${it.name} (unknown rarity ${h.tier})`);
+    continue;
+  }
+  stats[it.id] = { damage: stat(h, "DAMAGE"), strength: stat(h, "STRENGTH"), rarity, ...OVERRIDES[it.id] };
 }
 
 console.log(`Hypixel data updated ${new Date(body.lastUpdated).toISOString()}`);
 console.log(`matched ${Object.keys(stats).length}/${BASE_ITEMS.length}\n`);
 for (const it of BASE_ITEMS) {
   const s = stats[it.id];
-  if (s) console.log(`  ${it.name.padEnd(26)} dmg ${String(s.damage).padStart(4)}  str ${String(s.strength).padStart(4)}`);
+  if (s) console.log(`  ${it.name.padEnd(26)} dmg ${String(s.damage).padStart(4)}  str ${String(s.strength).padStart(4)}  ${s.rarity}`);
 }
 if (byNameMatches.length) console.log(`\nmatched by name (check these):\n  ${byNameMatches.join("\n  ")}`);
 
@@ -102,7 +126,8 @@ if (missing.length) {
   if (WRITE) console.error("not writing: every item needs stats");
 } else if (WRITE) {
   const lines = BASE_ITEMS.map(
-    (it) => `  ${JSON.stringify(it.id)}: { damage: ${stats[it.id].damage}, strength: ${stats[it.id].strength} },`
+    (it) =>
+      `  ${JSON.stringify(it.id)}: { damage: ${stats[it.id].damage}, strength: ${stats[it.id].strength}, rarity: ${JSON.stringify(stats[it.id].rarity)} },`
   );
   writeFileSync(
     OUT,

@@ -7,6 +7,18 @@
 
 export const CHANGELOG = [
   {
+    version: "1.2",
+    date: "2026-10-15",
+    title: "Accurate items, more guesses",
+    changes: [
+      "10 guesses per round instead of 8",
+      "Every item's rarity now comes from Hypixel's own data, correcting 31 items whose higher/lower hints could point the wrong way",
+      "Daedalus Blade shows its full 240 Damage (reached at Taming 60)",
+      "Silver Fang removed: Hypixel's data shows it isn't a weapon or tool",
+      "Five items renamed to match Hypixel: Daedalus Blade, Ragnarock, Mosquito Shortbow, Machine Gun Shortbow and Silk-Edge Sword",
+    ],
+  },
+  {
     version: "1.1",
     date: "2026-10-12",
     title: "Damage and Strength",
