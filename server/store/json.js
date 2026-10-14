@@ -1,5 +1,6 @@
 // JSON-file store used for local development. One score per (clientId, date).
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { MAX_GUESSES } from "../../src/utils/game.js";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { nextStreak, mergeTop, publicTop, TOP_LIMIT } from "../streaks.js";
@@ -104,7 +105,7 @@ export function createJsonStore() {
     async globalStats(dateKey) {
       const all = db.scores;
       const wins = all.filter((s) => s.won);
-      const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+      const dist = Object.fromEntries(Array.from({ length: MAX_GUESSES }, (_, i) => [i + 1, 0]));
       wins.forEach((s) => {
         if (dist[s.guesses] != null) dist[s.guesses]++;
       });

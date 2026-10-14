@@ -1,7 +1,12 @@
 // Player stats, saved in localStorage. The update logic is a pure function
 // (applyResult) so it's easy to reason about and reuse.
 
+import { MAX_GUESSES } from "./game.js";
+
 const STATS_KEY = "skyblockzordle-stats-v1";
+
+// One row per possible guess count: { 1: 0, 2: 0, ... }.
+const emptyDist = () => Object.fromEntries(Array.from({ length: MAX_GUESSES }, (_, i) => [i + 1, 0]));
 
 export const EMPTY = {
   played: 0,
@@ -10,7 +15,7 @@ export const EMPTY = {
   maxStreak: 0,
   lastWonPuzzle: null, // puzzle number of the most recent win (for streaks)
   lastRecordedPuzzle: null, // guard against double-counting the same puzzle
-  dist: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 },
+  dist: emptyDist(),
 };
 
 // Pure: given prior stats + a result, return the new stats. Idempotent per

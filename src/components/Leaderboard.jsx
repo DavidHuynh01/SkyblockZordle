@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../utils/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { MAX_GUESSES } from "../utils/game.js";
 
 function fmtTime(ms) {
   if (!ms) return "";
@@ -9,7 +10,7 @@ function fmtTime(ms) {
   return m ? `${m}m ${s % 60}s` : `${s}s`;
 }
 
-const DIST_KEYS = [1, 2, 3, 4, 5, 6, 7, 8];
+const DIST_KEYS = Array.from({ length: MAX_GUESSES }, (_, i) => i + 1);
 
 export default function Leaderboard({ onClose }) {
   const { enabled, user, signIn } = useAuth();
@@ -35,7 +36,7 @@ export default function Leaderboard({ onClose }) {
   }, []);
 
 
-  const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, ...(stats?.dist || {}) };
+  const dist = { ...Object.fromEntries(DIST_KEYS.map((k) => [k, 0])), ...(stats?.dist || {}) };
   const maxDist = Math.max(1, ...DIST_KEYS.map((k) => dist[k] || 0));
 
   return (
@@ -105,7 +106,7 @@ export default function Leaderboard({ onClose }) {
                         <span>{e.name}</span>
                       </span>
                       <span className="opacity-80">
-                        {e.guesses}/8{e.timeMs ? ` · ${fmtTime(e.timeMs)}` : ""}
+                        {e.guesses}/{MAX_GUESSES}{e.timeMs ? ` · ${fmtTime(e.timeMs)}` : ""}
                       </span>
                     </li>
                   ))}

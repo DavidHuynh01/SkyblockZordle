@@ -1,4 +1,6 @@
 // "How to Play" / rules modal.
+import { MAX_GUESSES } from "../utils/game.js";
+
 export default function HowToPlay({ onClose }) {
   return (
     <div
@@ -15,7 +17,7 @@ export default function HowToPlay({ onClose }) {
         </h2>
 
         <div className="text-[9px] sm:text-[10px] text-paneldark leading-relaxed space-y-3">
-          <p>Guess the secret Hypixel Skyblock item in 8 tries.</p>
+          <p>Guess the secret Hypixel Skyblock item in {MAX_GUESSES} tries.</p>
           <p>
             Pick an item from the search box or the grid. Each guess reveals how
             its attributes compare to the answer:

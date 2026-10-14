@@ -72,6 +72,6 @@ test("sharing works for a guess saved before the new columns existed", () => {
   const old = { rarity: { status: "correct" }, category: { status: "correct" }, npcSell: { status: "wrong" },
     source: { status: "correct" }, location: { status: "wrong" }, tradeable: { status: "correct" } };
   const text = buildShareText([{ item: ITEMS[0], result: old }], 1, false);
-  assert.match(text, /SkyblockZordle #1 X\/8/);
+  assert.match(text, /SkyblockZordle #1 X\/10/);
   assert.equal(text.split("\n")[1].length > 0, true);
 });
