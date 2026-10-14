@@ -15,6 +15,19 @@ Parameters:
     Type: String
     Default: ""
     Description: The API's own base URL, used to build the Discord OAuth redirect URI
+  SiteDomain:
+    Type: String
+    Default: ""
+    Description: Custom domain for the site (e.g. skyblockzordle.com). Empty keeps the CloudFront address only.
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM certificate (us-east-1) covering SiteDomain and www.SiteDomain. Required with SiteDomain.
+    # Empty, or a certificate in us-east-1: CloudFront only accepts certificates from there.
+    AllowedPattern: "^$|^arn:aws:acm:us-east-1:[0-9]{12}:certificate/[0-9a-f-]+$"
+
+Conditions:
+  HasCustomDomain: !Not [!Equals [!Ref SiteDomain, ""]]
 
 Globals:
   Function:
@@ -84,7 +97,14 @@ Resources:
       FunctionUrlConfig:
         AuthType: NONE          # public game API, no credentials needed
         Cors:
-          AllowOrigins: [!Ref AllowedOrigin]
+          # With a custom domain the site answers on three addresses (the domain,
+          # www, and the original CloudFront one), and the API accepts all three.
+          AllowOrigins: !If
+            - HasCustomDomain
+            - - !Sub "https://${SiteDomain}"
+              - !Sub "https://www.${SiteDomain}"
+              - !Sub "https://${SiteDistribution.DomainName}"
+            - [!Ref AllowedOrigin]
           AllowMethods: [GET, POST]   # preflight OPTIONS is handled by the Function URL itself
           AllowHeaders: [content-type, authorization]   # authorization is required for the Discord session token
 
@@ -109,11 +129,27 @@ Resources:
 
   SiteDistribution:
     Type: AWS::CloudFront::Distribution
+    Metadata:
+      cfn-lint:
+        config:
+          # CertificateArn defaults to "" and is only used when SiteDomain is set
+          # (HasCustomDomain); the linter checks the default regardless.
+          ignore_checks: [W1030]
     Properties:
       DistributionConfig:
         Enabled: true
         DefaultRootObject: index.html
         PriceClass: PriceClass_100          # cheapest edge locations
+        Aliases: !If
+          - HasCustomDomain
+          - [!Ref SiteDomain, !Sub "www.${SiteDomain}"]
+          - !Ref AWS::NoValue
+        ViewerCertificate: !If
+          - HasCustomDomain
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only        # free; every current browser supports it
+            MinimumProtocolVersion: TLSv1.2_2021
+          - !Ref AWS::NoValue
         Origins:
           - Id: SiteS3
             DomainName: !GetAtt SiteBucket.RegionalDomainName
@@ -154,8 +190,8 @@ Outputs:
   TableName:
     Value: !Ref ScoresTable
   SiteUrl:
-    Description: Public site URL (CloudFront)
-    Value: !Sub "https://${SiteDistribution.DomainName}"
+    Description: Public site URL
+    Value: !If [HasCustomDomain, !Sub "https://${SiteDomain}", !Sub "https://${SiteDistribution.DomainName}"]
   SiteBucketName:
     Description: Upload the built frontend here (aws s3 sync dist/ s3://<this>)
     Value: !Ref SiteBucket

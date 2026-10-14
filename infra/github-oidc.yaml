@@ -234,6 +234,13 @@ Resources:
                   - cloudfront:DeleteOriginAccessControl
                   - cloudfront:CreateInvalidation
                 Resource: "*"
+              # Read-only: lets CloudFront's update check the custom domain's
+              # certificate. Cannot create, change or export certificates.
+              - Effect: Allow
+                Action:
+                  - acm:DescribeCertificate
+                  - acm:ListCertificates
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
