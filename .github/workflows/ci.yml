@@ -122,7 +122,7 @@ jobs:
             --resolve-s3 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --parameter-overrides "AllowedOrigin=${{ vars.SITE_URL }}"
+            --parameter-overrides "AllowedOrigin=${{ vars.SITE_URL }}"               "SiteDomain=${{ vars.SITE_DOMAIN }}" "CertificateArn=${{ vars.CERTIFICATE_ARN }}"
 
       - name: Build frontend against the deployed API
         env:
