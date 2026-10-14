@@ -12,12 +12,12 @@ import {
   isWin,
   compareGuess,
   buildShareText,
+  MAX_GUESSES,
 } from "../utils/game.js";
 import { recordResult, winPercent } from "../utils/stats.js";
 import { api } from "../utils/api.js";
 import { sfx } from "../utils/sfx.js";
 
-const MAX_GUESSES = 8;
 const STORAGE_KEY = "skyblockzordle-daily-v2";
 
 export default function Game({ mode, onBack }) {

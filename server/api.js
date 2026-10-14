@@ -4,8 +4,8 @@ import { utcDateKey, puzzleNumber, answerFor, compareGuess, itemById } from "./l
 import { createSessionToken, verifySessionToken, createState, verifyState, bearerFrom } from "./auth.js";
 import { authorizeUrl, exchangeCode, fetchUser } from "./discord.js";
 import { createRateLimiter } from "./ratelimit.js";
+import { MAX_GUESSES } from "../src/utils/game.js";
 
-const MAX_GUESSES = 8;
 const reply = (status, body, headers) => ({ status, body, headers });
 const redirect = (location) => ({ status: 302, body: null, headers: { location } });
 

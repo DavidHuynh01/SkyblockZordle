@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { MAX_GUESSES } from "../../src/utils/game.js";
 import assert from "node:assert/strict";
 import { createApi, handleRequest } from "../api.js";
 import { utcDateKey, answerFor } from "../logic.js";
@@ -94,13 +95,24 @@ test("solving twice does not overwrite the first result", async () => {
   assert.equal(lb[0].guesses, 1, "the original solve stands");
 });
 
-test("burning all 8 guesses then guessing right earns no score", async () => {
+test("a solve on the last allowed guess is ranked", async () => {
   const { api, store } = setup();
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < MAX_GUESSES - 1; i++) {
     await call(api, { method: "POST", path: "/api/guess", body: { itemId: wrongItem() }, headers: auth() });
   }
   await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: auth() });
-  assert.equal((await store.leaderboard(today())).length, 0, "brute forcing past 8 guesses must not rank");
+  const lb = await store.leaderboard(today());
+  assert.equal(lb.length, 1);
+  assert.equal(lb[0].guesses, MAX_GUESSES);
+});
+
+test("burning every allowed guess then guessing right earns no score", async () => {
+  const { api, store } = setup();
+  for (let i = 0; i < MAX_GUESSES; i++) {
+    await call(api, { method: "POST", path: "/api/guess", body: { itemId: wrongItem() }, headers: auth() });
+  }
+  await call(api, { method: "POST", path: "/api/guess", body: { itemId: answerToday().id }, headers: auth() });
+  assert.equal((await store.leaderboard(today())).length, 0, "brute forcing past the guess limit must not rank");
 });
 
 test("/api/me reflects the session", async () => {

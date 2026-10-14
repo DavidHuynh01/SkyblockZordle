@@ -1,5 +1,9 @@
 import { ITEMS, RARITY_ORDER } from "../data/items.js";
 
+// Guesses allowed per round. The single source for the game, the server's
+// ranking cut-off, share text and stats; nothing else should hard-code it.
+export const MAX_GUESSES = 10;
+
 // ---------------------------------------------------------------------------
 // Daily puzzle
 // ---------------------------------------------------------------------------
@@ -85,7 +89,7 @@ export const ATTR_ORDER = [
 // result (a game started before that column existed) shows as ⬛.
 export function buildShareText(guesses, puzzleNumber, won) {
   const score = won ? guesses.length : "X";
-  const header = `SkyblockZordle #${puzzleNumber} ${score}/8`;
+  const header = `SkyblockZordle #${puzzleNumber} ${score}/${MAX_GUESSES}`;
   const cell = (res) => (!res ? "⬛" : res.status === "correct" ? "🟩" : "🟥");
   const rows = guesses.map(({ result: r }) => ATTR_ORDER.map((k) => cell(r[k])).join(""));
   return [header, ...rows, SITE_URL].join("\n");

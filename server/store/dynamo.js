@@ -1,7 +1,7 @@
 // DynamoDB store (AWS deployment). Single table, two item shapes:
 //
 //   score    pk = "DATE#<date>"  sk = "CLIENT#<clientId>"
-//   counters pk = "STATS"        sk = "GLOBAL"   (played, wins, d1..d8)
+//   counters pk = "STATS"        sk = "GLOBAL"   (played, wins, d1..dN for N guesses)
 //
 // Global stats come from the counters item rather than a table Scan, so cost
 // stays flat as the table grows. Counters are only incremented when a score is
@@ -14,6 +14,7 @@ import {
   QueryCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
+import { MAX_GUESSES } from "../../src/utils/game.js";
 import { nextStreak, mergeTop, publicTop, TOP_LIMIT } from "../streaks.js";
 
 const scoreKey = (date, userId) => ({ pk: `DATE#${date}`, sk: `USER#${userId}` });
@@ -237,7 +238,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
       const c = counters?.Item || {};
       const d = day?.Item || {};
       const dist = {};
-      for (let g = 1; g <= 8; g++) dist[g] = Number(c[`d${g}`] || 0);
+      for (let g = 1; g <= MAX_GUESSES; g++) dist[g] = Number(c[`d${g}`] || 0);
       const played = Number(c.played || 0);
       const wins = Number(c.wins || 0);
       return {

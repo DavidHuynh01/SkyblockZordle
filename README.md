@@ -7,7 +7,7 @@ of five-letter words you're guessing swords, wands, bows, and tools.
 
 ## How it works
 
-Every day there's one secret Skyblock item, and you get 8 guesses to find it.
+Every day there's one secret Skyblock item, and you get 10 guesses to find it.
 Each guess is scored against the answer attribute by attribute:
 
 - 🟩 **Green** — that attribute matches the answer
