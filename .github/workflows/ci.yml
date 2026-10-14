@@ -113,7 +113,16 @@ jobs:
 
       - name: Deploy API (Lambda + DynamoDB + CloudFront)
         working-directory: infra
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          CERTIFICATE_ARN: ${{ vars.CERTIFICATE_ARN }}
         run: |
+          # SAM rejects an empty "Key=" override, so the optional custom-domain
+          # settings are only passed when they're set.
+          overrides=("AllowedOrigin=$SITE_URL")
+          if [ -n "$SITE_DOMAIN" ]; then overrides+=("SiteDomain=$SITE_DOMAIN"); fi
+          if [ -n "$CERTIFICATE_ARN" ]; then overrides+=("CertificateArn=$CERTIFICATE_ARN"); fi
           sam build
           sam deploy \
             --stack-name "${{ vars.STACK_NAME }}" \
@@ -122,7 +131,7 @@ jobs:
             --resolve-s3 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --parameter-overrides "AllowedOrigin=${{ vars.SITE_URL }}"               "SiteDomain=${{ vars.SITE_DOMAIN }}" "CertificateArn=${{ vars.CERTIFICATE_ARN }}"
+            --parameter-overrides "${overrides[@]}"
 
       - name: Build frontend against the deployed API
         env:
