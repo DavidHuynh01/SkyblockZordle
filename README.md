@@ -53,6 +53,23 @@ scores and sessions, and the site itself served from a private S3 bucket through
 CloudFront. The whole stack is defined in [`infra/template.yaml`](infra/template.yaml),
 so it deploys from a single command.
 
+## Running the tests
+
+```bash
+npm test --prefix server                  # unit tests, no Docker needed
+docker compose up -d                      # DynamoDB Local, in memory
+npm run test:integration --prefix server  # the real DynamoDB store code against it
+```
+
+The integration tests run the production DynamoDB code against
+[DynamoDB Local](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html),
+with a table built from `infra/template.yaml`, including tests that fire
+concurrent writes. They refuse any endpoint that isn't local. CI runs both
+suites on every pull request, and nothing deploys unless they pass.
+
+DynamoDB Local doesn't prove everything: IAM permissions, provisioned-capacity
+throttling, TTL deletion and real network latency are only exercised in AWS.
+
 ---
 
 Item art is from the official Hypixel SkyBlock Resource Pack (© Hypixel Inc.),

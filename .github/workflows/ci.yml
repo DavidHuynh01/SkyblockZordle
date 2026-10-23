@@ -70,9 +70,40 @@ jobs:
         if: failure()
         run: docker logs api || true
 
+  # The production DynamoDB store code against a real DynamoDB engine
+  # (DynamoDB Local, from compose.yaml), including the concurrent-write tests.
+  # The keys are dummies: the tests refuse any endpoint but the local one.
+  integration:
+    name: integration
+    runs-on: ubuntu-24.04
+    env:
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install
+        run: npm ci --prefix server
+
+      - name: Start DynamoDB Local
+        run: docker compose up -d
+
+      - name: Integration tests
+        run: npm run test:integration --prefix server
+
+      - name: DynamoDB Local logs
+        if: failure()
+        run: docker compose logs
+
   deploy:
     name: deploy
-    needs: [test, docker]
+    needs: [test, docker, integration]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     # Records a deployment against the repo, linked to the live site.
