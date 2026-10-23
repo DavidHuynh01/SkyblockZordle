@@ -99,10 +99,12 @@ export function createApi(store, config = {}, deps = {}) {
       if (playerId) {
         const state = await store.recordGuess({ date: day, userId: playerId });
         recorded = { guesses: state.guesses, alreadySolved: state.solved };
-        if (correct && !state.solved && state.guesses <= MAX_GUESSES) {
-          await store.markSolved({ date: day, userId: playerId });
-        }
-        if (user && correct && !state.solved && state.guesses <= MAX_GUESSES) {
+        // Only the request that actually records the solve goes on to score it:
+        // two correct guesses arriving together both see state.solved false.
+        const solvedNow =
+          correct && !state.solved && state.guesses <= MAX_GUESSES &&
+          (await store.markSolved({ date: day, userId: playerId }));
+        if (user && solvedNow) {
           const timeMs = Math.max(0, Date.now() - state.startedAt);
           await store.addScore({
             userId: user.id,

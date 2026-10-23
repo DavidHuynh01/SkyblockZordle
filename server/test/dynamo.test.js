@@ -158,3 +158,28 @@ test("a streak survives a profile update on re-login", async () => {
   const s = await store.recordStreak({ userId: "u1", name: "Steve2", puzzleNumber: 2 });
   assert.equal(s.streak, 2, "logging in again must not wipe the streak");
 });
+
+test("only the first markSolved for a game counts the solve", async () => {
+  const { store } = setup();
+  assert.equal(await store.markSolved({ date: "2026-10-07", userId: "u1" }), true);
+  assert.equal(await store.markSolved({ date: "2026-10-07", userId: "u1" }), false);
+  assert.equal((await store.globalStats("2026-10-07")).todaySolved, 1);
+});
+
+test("a board saved by someone else in between is merged, not overwritten", async () => {
+  const { client, store } = setup();
+  await store.recordStreak({ userId: "a", name: "A", puzzleNumber: 1, now: 1 });
+  // Another writer bumps the board's version after we read it: our write must retry.
+  const realSend = client.send.bind(client);
+  let interfered = false;
+  client.send = async (cmd) => {
+    if (!interfered && cmd.constructor.name === "PutCommand" && cmd.input.Item?.sk === "STREAKS") {
+      interfered = true;
+      const cur = client.items.get("STATS|STREAKS");
+      client.items.set("STATS|STREAKS", { ...cur, top: [...cur.top, { userId: "b", name: "B", maxStreak: 1, at: 2 }], version: cur.version + 1 });
+    }
+    return realSend(cmd);
+  };
+  await store.recordStreak({ userId: "c", name: "C", puzzleNumber: 1, now: 3 });
+  assert.deepEqual((await store.topStreaks()).map((e) => e.name), ["A", "B", "C"]);
+});

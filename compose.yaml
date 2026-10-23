@@ -1,0 +1,12 @@
+# DynamoDB Local for the integration tests (server/integration/). It runs the
+# real DynamoDB engine offline, so the production store code is tested against
+# real condition checks and concurrent writes instead of a hand-written fake.
+#
+# In-memory and throwaway: every start is an empty database, and nothing here
+# can reach AWS. CI starts this same file.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.1
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "127.0.0.1:8000:8000"

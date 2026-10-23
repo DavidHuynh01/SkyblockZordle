@@ -1,5 +1,26 @@
 // Minimal in-memory stand-in for DynamoDBDocumentClient — enough of Put/Get/
 // Update(ADD)/Query to exercise the store's logic without an AWS account.
+// Just the condition forms the store uses: clauses of attribute_not_exists(a)
+// or a = :v, joined by OR.
+function checkCondition(i, existing) {
+  if (!i.ConditionExpression) return;
+  const names = i.ExpressionAttributeNames || {};
+  const vals = i.ExpressionAttributeValues || {};
+  const attr = (tok) => names[tok] ?? tok;
+  const holds = i.ConditionExpression.split(/\s+OR\s+/).some((clause) => {
+    const missing = /^attribute_not_exists\((\S+)\)$/.exec(clause.trim());
+    if (missing) return existing?.[attr(missing[1])] === undefined;
+    const eq = /^(\S+)\s*=\s*(:\w+)$/.exec(clause.trim());
+    if (eq) return existing !== undefined && existing[attr(eq[1])] === vals[eq[2]];
+    throw new Error("fake can't evaluate condition: " + clause);
+  });
+  if (!holds) {
+    const err = new Error("The conditional request failed");
+    err.name = "ConditionalCheckFailedException";
+    throw err;
+  }
+}
+
 export function createFakeClient() {
   const items = new Map();
   const key = (k) => `${k.pk}|${k.sk}`;
@@ -11,11 +32,7 @@ export function createFakeClient() {
       const i = cmd.input;
 
       if (name === "PutCommand") {
-        if (i.ConditionExpression === "attribute_not_exists(pk)" && items.has(key(i.Item))) {
-          const err = new Error("The conditional request failed");
-          err.name = "ConditionalCheckFailedException";
-          throw err;
-        }
+        checkCondition(i, items.get(key(i.Item)));
         items.set(key(i.Item), { ...i.Item });
         return {};
       }
@@ -23,6 +40,7 @@ export function createFakeClient() {
       if (name === "GetCommand") return { Item: items.get(key(i.Key)) };
 
       if (name === "UpdateCommand") {
+        checkCondition(i, items.get(key(i.Key)));
         const cur = items.get(key(i.Key)) || { ...i.Key };
         const names = i.ExpressionAttributeNames || {};
         const vals = i.ExpressionAttributeValues || {};

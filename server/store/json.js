@@ -28,8 +28,8 @@ export function createJsonStore() {
   };
 
   return {
-    async upsertUser(user) {
-      db.users[user.id] = { ...(db.users[user.id] || { createdAt: Date.now() }), ...user, lastLogin: Date.now() };
+    async upsertUser(user, { now = Date.now() } = {}) {
+      db.users[user.id] = { ...(db.users[user.id] || { createdAt: now }), ...user, lastLogin: now };
       save();
     },
 
@@ -46,12 +46,15 @@ export function createJsonStore() {
       return { guesses: g.guesses, startedAt: g.startedAt, solved: !!g.solved };
     },
 
+    // Same contract as the DynamoDB store: true only for the call that solved it.
     async markSolved({ date, userId, now = Date.now() }) {
+      const k = `${date}|${userId}`;
+      if (db.games[k]?.solved) return false;
       const d = (db.days[date] = db.days[date] || { players: 0, solved: 0 });
       d.solved += 1;
-      const k = `${date}|${userId}`;
       db.games[k] = { ...(db.games[k] || { guesses: 1, startedAt: now }), solved: true, solvedAt: now };
       save();
+      return true;
     },
 
     async addScore(entry) {

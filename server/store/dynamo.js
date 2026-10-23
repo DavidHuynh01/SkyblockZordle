@@ -26,6 +26,7 @@ const dayKey = (date) => ({ pk: "STATS", sk: `DAY#${date}` });
 // need a Scan or a secondary index, both of which cost capacity; this row is
 // only rewritten when somebody beats their own record.
 const STREAKS_KEY = { pk: "STATS", sk: "STREAKS" };
+const BOARD_ATTEMPTS = 5;
 
 export function defaultClient() {
   return DynamoDBDocumentClient.from(new DynamoDBClient({}), {
@@ -59,16 +60,47 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
     );
   }
 
-  return {
-    // Counts a user the first time we see them, so "total players" is a real
-    // number rather than a table scan.
-    async upsertUser(user) {
-      const fields = { ...user, lastLogin: Date.now() };
+  // Folds a new record into the top-10 item. Two players beating records at the
+  // same moment would otherwise both read the old list, and the second write
+  // would erase the first player's record. Each write only succeeds if nobody
+  // changed the item since we read it (optimistic locking on `version`);
+  // otherwise re-read and merge again. A board saved before versioning has no
+  // version, which counts as 0.
+  async function saveToBoard(entry, attempts = BOARD_ATTEMPTS) {
+    for (let i = 0; i < attempts; i++) {
+      const cur = await client.send(new GetCommand({ TableName: tableName, Key: STREAKS_KEY }));
+      const version = Number(cur?.Item?.version || 0);
       try {
         await client.send(
           new PutCommand({
             TableName: tableName,
-            Item: { ...userKey(user.id), ...fields, createdAt: Date.now() },
+            Item: { ...STREAKS_KEY, top: mergeTop(cur?.Item?.top, entry), version: version + 1 },
+            ConditionExpression: "attribute_not_exists(#v) OR #v = :v",
+            ExpressionAttributeNames: { "#v": "version" },
+            ExpressionAttributeValues: { ":v": version },
+          })
+        );
+        return true;
+      } catch (err) {
+        if (err?.name !== "ConditionalCheckFailedException") throw err;
+        await new Promise((r) => setTimeout(r, Math.random() * 20 * (i + 1)));
+      }
+    }
+    // The board is cosmetic: a player's guess must not fail because of it.
+    console.warn(`streak board busy, record for ${entry.userId} not saved`);
+    return false;
+  }
+
+  return {
+    // Counts a user the first time we see them, so "total players" is a real
+    // number rather than a table scan.
+    async upsertUser(user, { now = Date.now() } = {}) {
+      const fields = { ...user, lastLogin: now };
+      try {
+        await client.send(
+          new PutCommand({
+            TableName: tableName,
+            Item: { ...userKey(user.id), ...fields, createdAt: now },
             ConditionExpression: "attribute_not_exists(pk)",
           })
         );
@@ -118,16 +150,27 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
       return { guesses, startedAt: Number(it.startedAt || now), solved: Boolean(it.solved) };
     },
 
+    // Returns true only for the call that actually solved the game. Two correct
+    // guesses landing together (a double click, a retried request) both see
+    // "not solved yet" in recordGuess; the condition lets exactly one through,
+    // so a solve is counted, scored and credited to the streak once.
     async markSolved({ date, userId, now = Date.now() }) {
+      try {
+        await client.send(
+          new UpdateCommand({
+            TableName: tableName,
+            Key: gameKey(date, userId),
+            UpdateExpression: "SET solved = :t, solvedAt = :now",
+            ConditionExpression: "attribute_not_exists(solved)",
+            ExpressionAttributeValues: { ":t": true, ":now": now },
+          })
+        );
+      } catch (err) {
+        if (err?.name !== "ConditionalCheckFailedException") throw err;
+        return false;
+      }
       await bumpCounters({ solved: 1 }, dayKey(date));
-      await client.send(
-        new UpdateCommand({
-          TableName: tableName,
-          Key: gameKey(date, userId),
-          UpdateExpression: "SET solved = :t, solvedAt = :now",
-          ExpressionAttributeValues: { ":t": true, ":now": now },
-        })
-      );
+      return true;
     },
 
     async addScore(entry) {
@@ -181,19 +224,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
       );
 
       if (s.improved) {
-        const cur = await client.send(
-          new GetCommand({ TableName: tableName, Key: STREAKS_KEY })
-        );
-        const top = mergeTop(cur?.Item?.top, {
-          userId,
-          name,
-          avatar,
-          maxStreak: s.maxStreak,
-          at: now,
-        });
-        await client.send(
-          new PutCommand({ TableName: tableName, Item: { ...STREAKS_KEY, top } })
-        );
+        await saveToBoard({ userId, name, avatar, maxStreak: s.maxStreak, at: now });
       }
       return { streak: s.streak, maxStreak: s.maxStreak };
     },
