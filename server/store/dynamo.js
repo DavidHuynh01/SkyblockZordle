@@ -26,6 +26,7 @@ const dayKey = (date) => ({ pk: "STATS", sk: `DAY#${date}` });
 // need a Scan or a secondary index, both of which cost capacity; this row is
 // only rewritten when somebody beats their own record.
 const STREAKS_KEY = { pk: "STATS", sk: "STREAKS" };
+const BOARD_ATTEMPTS = 5;
 
 export function defaultClient() {
   return DynamoDBDocumentClient.from(new DynamoDBClient({}), {
@@ -57,6 +58,37 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
         ExpressionAttributeValues: values,
       })
     );
+  }
+
+  // Folds a new record into the top-10 item. Two players beating records at the
+  // same moment would otherwise both read the old list, and the second write
+  // would erase the first player's record. Each write only succeeds if nobody
+  // changed the item since we read it (optimistic locking on `version`);
+  // otherwise re-read and merge again. A board saved before versioning has no
+  // version, which counts as 0.
+  async function saveToBoard(entry, attempts = BOARD_ATTEMPTS) {
+    for (let i = 0; i < attempts; i++) {
+      const cur = await client.send(new GetCommand({ TableName: tableName, Key: STREAKS_KEY }));
+      const version = Number(cur?.Item?.version || 0);
+      try {
+        await client.send(
+          new PutCommand({
+            TableName: tableName,
+            Item: { ...STREAKS_KEY, top: mergeTop(cur?.Item?.top, entry), version: version + 1 },
+            ConditionExpression: "attribute_not_exists(#v) OR #v = :v",
+            ExpressionAttributeNames: { "#v": "version" },
+            ExpressionAttributeValues: { ":v": version },
+          })
+        );
+        return true;
+      } catch (err) {
+        if (err?.name !== "ConditionalCheckFailedException") throw err;
+        await new Promise((r) => setTimeout(r, Math.random() * 20 * (i + 1)));
+      }
+    }
+    // The board is cosmetic: a player's guess must not fail because of it.
+    console.warn(`streak board busy, record for ${entry.userId} not saved`);
+    return false;
   }
 
   return {
@@ -181,19 +213,7 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
       );
 
       if (s.improved) {
-        const cur = await client.send(
-          new GetCommand({ TableName: tableName, Key: STREAKS_KEY })
-        );
-        const top = mergeTop(cur?.Item?.top, {
-          userId,
-          name,
-          avatar,
-          maxStreak: s.maxStreak,
-          at: now,
-        });
-        await client.send(
-          new PutCommand({ TableName: tableName, Item: { ...STREAKS_KEY, top } })
-        );
+        await saveToBoard({ userId, name, avatar, maxStreak: s.maxStreak, at: now });
       }
       return { streak: s.streak, maxStreak: s.maxStreak };
     },
