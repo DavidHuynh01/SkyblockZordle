@@ -28,8 +28,8 @@ export function createJsonStore() {
   };
 
   return {
-    async upsertUser(user) {
-      db.users[user.id] = { ...(db.users[user.id] || { createdAt: Date.now() }), ...user, lastLogin: Date.now() };
+    async upsertUser(user, { now = Date.now() } = {}) {
+      db.users[user.id] = { ...(db.users[user.id] || { createdAt: now }), ...user, lastLogin: now };
       save();
     },
 

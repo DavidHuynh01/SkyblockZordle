@@ -62,13 +62,13 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
   return {
     // Counts a user the first time we see them, so "total players" is a real
     // number rather than a table scan.
-    async upsertUser(user) {
-      const fields = { ...user, lastLogin: Date.now() };
+    async upsertUser(user, { now = Date.now() } = {}) {
+      const fields = { ...user, lastLogin: now };
       try {
         await client.send(
           new PutCommand({
             TableName: tableName,
-            Item: { ...userKey(user.id), ...fields, createdAt: Date.now() },
+            Item: { ...userKey(user.id), ...fields, createdAt: now },
             ConditionExpression: "attribute_not_exists(pk)",
           })
         );
