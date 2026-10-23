@@ -3,7 +3,11 @@
 // inside the database.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import { openTestStore } from "./helper.js";
+import { createApi } from "../api.js";
+import { answerFor } from "../logic.js";
+import { createSessionToken } from "../auth.js";
 
 const DAY = "2026-09-01";
 
@@ -44,11 +48,36 @@ test("records beaten at the same moment all reach the streak board", async (t) =
 test("a board saved before versioning existed can still be updated", async (t) => {
   // Production's board item has no version number yet.
   const { store, client, tableName } = await fresh(t);
-  const { PutCommand } = await import("@aws-sdk/lib-dynamodb");
   await client.send(new PutCommand({
     TableName: tableName,
     Item: { pk: "STATS", sk: "STREAKS", top: [{ userId: "old", name: "Old", maxStreak: 4, at: 1 }] },
   }));
   await store.recordStreak({ userId: "new", name: "New", puzzleNumber: 1, now: 2 });
   assert.deepEqual((await store.topStreaks()).map((e) => e.name), ["Old", "New"]);
+});
+
+test("solving the same day twice counts one solve", async (t) => {
+  const { store } = await fresh(t);
+  await store.markSolved({ date: DAY, userId: "u1", now: 1 });
+  await store.markSolved({ date: DAY, userId: "u1", now: 2 });
+  assert.equal((await store.globalStats(DAY)).todaySolved, 1);
+});
+
+test("two correct guesses from one player at the same moment count one solve", async (t) => {
+  // A double click or a retried request: both guesses read "not solved yet"
+  // before either one records the solve, so both used to count it.
+  const { store } = await fresh(t);
+  const config = { sessionSecret: "s", dailySecret: "d", discordClientId: "c", discordClientSecret: "x" };
+  const api = createApi(store, config);
+  const headers = { authorization: `Bearer ${createSessionToken({ id: "u1", username: "Steve" }, "s")}` };
+  const body = { date: DAY, itemId: answerFor(DAY, "d").id };
+
+  const results = await Promise.all([api.guess(body, headers), api.guess(body, headers)]);
+
+  assert.deepEqual(results.map((r) => r.body.correct), [true, true]);
+  const s = await store.globalStats(DAY);
+  assert.equal(s.todaySolved, 1);
+  assert.equal(s.played, 1);
+  assert.equal(s.wins, 1);
+  assert.equal((await store.leaderboard(DAY)).length, 1);
 });

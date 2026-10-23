@@ -150,16 +150,27 @@ export function createDynamoStore({ client = defaultClient(), tableName } = {}) 
       return { guesses, startedAt: Number(it.startedAt || now), solved: Boolean(it.solved) };
     },
 
+    // Returns true only for the call that actually solved the game. Two correct
+    // guesses landing together (a double click, a retried request) both see
+    // "not solved yet" in recordGuess; the condition lets exactly one through,
+    // so a solve is counted, scored and credited to the streak once.
     async markSolved({ date, userId, now = Date.now() }) {
+      try {
+        await client.send(
+          new UpdateCommand({
+            TableName: tableName,
+            Key: gameKey(date, userId),
+            UpdateExpression: "SET solved = :t, solvedAt = :now",
+            ConditionExpression: "attribute_not_exists(solved)",
+            ExpressionAttributeValues: { ":t": true, ":now": now },
+          })
+        );
+      } catch (err) {
+        if (err?.name !== "ConditionalCheckFailedException") throw err;
+        return false;
+      }
       await bumpCounters({ solved: 1 }, dayKey(date));
-      await client.send(
-        new UpdateCommand({
-          TableName: tableName,
-          Key: gameKey(date, userId),
-          UpdateExpression: "SET solved = :t, solvedAt = :now",
-          ExpressionAttributeValues: { ":t": true, ":now": now },
-        })
-      );
+      return true;
     },
 
     async addScore(entry) {
